@@ -35,6 +35,23 @@ TODO:
 
 """
 
+def draw_sample(seeds, model, seedsize=0):
+    sample = seeds.clone()
+    if torch.cuda.is_available():
+        sample = sample.cuda()
+    sample = Variable(sample)
+
+    for i in tqdm.trange(seedsize, W):
+        for j in range(seedsize, H):
+            for c in range(C):
+                result = model(Variable(sample, volatile=True))
+                probs = softmax(result[:, :, c, i, j]).data
+
+                pixel_sample = torch.multinomial(probs, 1).float() / 255.
+                sample[:, c, i, j] = pixel_sample.squeeze()
+
+    return sample
+
 def go(arg):
 
     ## Load the data
@@ -91,11 +108,13 @@ def go(arg):
 
     # A sample of 144 square images with 3 channels, of the chosen resolution
     # (144 so we can arrange them in a 12 by 12 grid)
-    sample_init = torch.zeros(144, 3, W, H)
+    sample_init_zeros = torch.zeros(72, 3, W, H)
+    sample_init_seeds = torch.zeros(72, 3, W, H)
 
-    # Init sec ond half of sample with patches from test set
-    testbatch = util.readn(testloader, n=72)
-    sample_init[72:, :, :8, :8] = testbatch[:, :, :8, :8]
+    # Init second half of sample with patches from test set, to seed the sampling
+    testbatch = util.readn(testloader, n=12)
+    testbatch = testbatch.unsqueeze(1).expand(12, 6, C, H, W).contiguous().view(72, 1, C, H, W).squeeze(1)
+    sample_init_seeds[:, :, :8, :8] = testbatch[:, :, :8, :8]
 
     optimizer = Adam(model.parameters(), lr=arg.lr)
 
@@ -155,26 +174,15 @@ def go(arg):
 
             err_te.append(loss.data.item())
 
-
-        sample = sample_init.clone()
-        if torch.cuda.is_available():
-            sample = sample.cuda()
-
         model.train(False)
-        for i in tqdm.trange(W):
-            for j in range(H):
-                for c in range(C):
-                    result = model(Variable(sample, volatile=True))
-                    probs = softmax(result[:, :, c, i, j]).data
-
-                    pixel_sample = torch.multinomial(probs, 1).float() / 255.
-                    sample[:, c, i, j] = pixel_sample.squeeze()
+        sample_zeros = draw_sample(sample_init_zeros, model, seedsize=0)
+        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=8)
+        sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
 
         print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
             epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
-
 
 if __name__ == "__main__":
 
