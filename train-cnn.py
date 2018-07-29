@@ -52,15 +52,16 @@ def go(arg):
     ## Set up the model
     fm = 2
     krn = 7
+    pad = 3
     model = Sequential(
-        PlainMaskedConv2d(False, 3,  fm, krn, 1, 1, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, 1, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, 3, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, 3, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, 3, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, 3, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, 3, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, 3, bias=False), BatchNorm2d(fm), ReLU(True),
+        PlainMaskedConv2d(False, 3,  fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
         Conv2d(fm, 256*C, 1),
         util.Reshape((256, C, W, H))
     )
