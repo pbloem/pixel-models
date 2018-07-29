@@ -22,10 +22,18 @@ import util
 
 from tensorboardX import SummaryWriter
 
-# CIFAR dimensions
-W, H = 32, 32
-
 from layers import PlainMaskedConv2d
+
+# CIFAR dimensions
+C, W, H = 3, 32, 32
+
+
+"""
+TODO:
+ - Gated activation.
+ - Eliminate blind spot.
+
+"""
 
 def go(arg):
 
@@ -42,17 +50,18 @@ def go(arg):
                                              shuffle=False, num_workers=2)
 
     ## Set up the model
-    fm = 8
+    fm = 2
     model = Sequential(
         PlainMaskedConv2d(False, 3,  fm, 3, 1, 1, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True, fm, fm, 3, 1, 1, bias=False), BatchNorm2d(fm), ReLU(True),
+        # PlainMaskedConv2d(True, fm, fm, 3, 1, 1, bias=False), BatchNorm2d(fm), ReLU(True),
         # MaskedConv2d('B', fm, fm, 7, 1, 3, bias=False), nn.BatchNorm2d(fm), nn.ReLU(True),
         # MaskedConv2d('B', fm, fm, 7, 1, 3, bias=False), nn.BatchNorm2d(fm), nn.ReLU(True),
         # MaskedConv2d('B', fm, fm, 7, 1, 3, bias=False), nn.BatchNorm2d(fm), nn.ReLU(True),
         # MaskedConv2d('B', fm, fm, 7, 1, 3, bias=False), nn.BatchNorm2d(fm), nn.ReLU(True),
         # MaskedConv2d('B', fm, fm, 7, 1, 3, bias=False), nn.BatchNorm2d(fm), nn.ReLU(True),
         # MaskedConv2d('B', fm, fm, 7, 1, 3, bias=False), nn.BatchNorm2d(fm), nn.ReLU(True),
-        Conv2d(fm, 256*3, 1))
+        Conv2d(fm, 256*C, 1),
+        util.Reshape(256, C, W, H))
 
     print('Constructed network', model)
 
@@ -72,7 +81,7 @@ def go(arg):
         err_tr = []
         model.train(True)
 
-        for i, (input, _) in tqdm.tqdm(enumerate(trainloader)):
+        for i, (input, _) in enumerate(tqdm.tqdm(trainloader)):
             if arg.limit is not None and i * arg.batch_size > arg.limit:
                 break
 
@@ -87,7 +96,6 @@ def go(arg):
 
             # Forward pass
             result = model(input)
-            result = result.view(b, 256, c, w, h)
 
             loss = cross_entropy(result, target)
 
@@ -101,10 +109,11 @@ def go(arg):
         # Evaluate
         # - we evaluate on the test set, since this is only a simpe reproduction experiment
         #   make sure to split off a validation set if you want to tune hyperparameters for something important
+
         err_te = []
         model.train(False)
 
-        for input, _ in tqdm.tqdm(testloader):
+        for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
             if arg.limit is not None and i * arg.batch_size > arg.limit:
                 break
 
@@ -115,7 +124,6 @@ def go(arg):
             input, target = Variable(input), Variable(target)
 
             result = model(input)
-            result = result.view(b, 256, c, w, h)
             loss = cross_entropy(result, target)
 
             err_te.append(loss.data.item())
@@ -125,16 +133,16 @@ def go(arg):
         model.train(False)
         for i in tqdm.trange(W):
             for j in range(H):
-                out = model(Variable(sample, volatile=True))
-                probs = softmax(out[:, :, i, j]).data
+                for c in range(C):
+                    result = model(Variable(sample, volatile=True))
+                    probs = softmax(result[:, :, c, i, j]).data
 
-                pixel_sample = torch.multinomial(probs, 1).float() / 255.
-                # print(i, j, pixel_sample.size(), pixel_sample[0])
-                sample[:, :, i, j] = pixel_sample
+                    pixel_sample = torch.multinomial(probs, 1).float() / 255.
+                    sample[:, :, c, i, j] = pixel_sample
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
 
-        print('epoch={}; nll_tr={:.7f}; nll_te={:.7f}'.format(
+        print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
             epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
 
