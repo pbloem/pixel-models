@@ -61,7 +61,8 @@ def go(arg):
         # MaskedConv2d('B', fm, fm, 7, 1, 3, bias=False), nn.BatchNorm2d(fm), nn.ReLU(True),
         # MaskedConv2d('B', fm, fm, 7, 1, 3, bias=False), nn.BatchNorm2d(fm), nn.ReLU(True),
         Conv2d(fm, 256*C, 1),
-        util.Reshape(256, C, W, H))
+        util.Reshape((256, C, W, H))
+    )
 
     print('Constructed network', model)
 
@@ -138,7 +139,7 @@ def go(arg):
                     probs = softmax(result[:, :, c, i, j]).data
 
                     pixel_sample = torch.multinomial(probs, 1).float() / 255.
-                    sample[:, :, c, i, j] = pixel_sample
+                    sample[:, c, i, j] = pixel_sample.squeeze()
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
 
