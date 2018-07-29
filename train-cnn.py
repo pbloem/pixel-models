@@ -36,13 +36,17 @@ TODO:
 """
 
 def draw_sample(seeds, model, seedsize=0):
+
     sample = seeds.clone()
     if torch.cuda.is_available():
         sample = sample.cuda()
     sample = Variable(sample)
 
-    for i in tqdm.trange(seedsize, W):
-        for j in range(seedsize, H):
+    for i in tqdm.trange(W):
+        for j in range(H):
+            if i < seedsize and j < seedsize:
+                continue
+
             for c in range(C):
                 result = model(Variable(sample, volatile=True))
                 probs = softmax(result[:, :, c, i, j]).data
