@@ -41,23 +41,24 @@ class MaskedConv2d(nn.Module):
 
     See figure 2 in _Conditional Image Generation with PixelCNN Decoders_, van den Oord 2016.
     """
-    def __init__(self, in_channels, out_channels, self_connection=False, k=7, padding=3):
+    def __init__(self, channels, self_connection=False, k=7, padding=3):
         """
         This is the "vanilla" masked CNN. Note that this creates a blind spot in the receptive field when stacked.
 
         :param self_connection: Whether to mask out the "current pixel" (ie. the middle of the convolution). In the
          first layer, this should be masked out, since it connects to the value we're trying to predict. In higher layers
          it convery the intermediate representations we're building up.
+        :param channels: The number of channels of both the input and the output.
         """
         super().__init__()
 
         assert (k // 2) * 2 == k - 1 # only odd numbers accepted
 
         # TODO: should these have biases?
-        self.vertical   = nn.Conv2d(in_channels,    out_channels*2, kernel_size=k, padding=padding)
-        self.horizontal = nn.Conv2d(in_channels,    out_channels*2, kernel_size=(1, k), padding=(0, padding))
-        self.tohori     = nn.Conv2d(out_channels*2, out_channels*2, kernel_size=1, padding=0)
-        self.tores     = nn.Conv2d(out_channels*2, out_channels*2, kernel_size=1, padding=0)
+        self.vertical   = nn.Conv2d(channels,   channels*2, kernel_size=k, padding=padding)
+        self.horizontal = nn.Conv2d(channels,   channels*2, kernel_size=(1, k), padding=(0, padding))
+        self.tohori     = nn.Conv2d(channels*2, channels*2, kernel_size=1, padding=0)
+        self.tores      = nn.Conv2d(channels,   channels,   kernel_size=1, padding=0)
 
 
         self.register_buffer('vmask', self.vertical.weight.data.clone())

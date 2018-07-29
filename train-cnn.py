@@ -27,9 +27,10 @@ from layers import PlainMaskedConv2d, MaskedConv2d
 # CIFAR dimensions
 C, W, H = 3, 32, 32
 
-
 """
 TODO:
+ - Provide seeds from test set.
+ - Conditional input.
  - Condition the colors properly.
 
 """
@@ -49,7 +50,7 @@ def go(arg):
                                              shuffle=False, num_workers=2)
 
     ## Set up the model
-    fm = 2
+    fm = arg.channels
     krn = 7
     pad = 3
 
@@ -66,13 +67,19 @@ def go(arg):
             Conv2d(fm, 256*C, 1),
             util.Reshape((256, C, W, H))
         )
-    elif 'gated':
+    elif arg.model == 'gated':
 
         model = Sequential(
+            Conv2d(3, fm, 1),
             util.Lambda(lambda x: (x, x)),
-            MaskedConv2d(3,  fm, self_connection=False, k=krn, padding=pad),
-            MaskedConv2d(fm, fm, self_connection=True,  k=krn, padding=pad),
-            MaskedConv2d(fm, fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=False, k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
             util.Lambda(lambda xs: xs[1]),
             Conv2d(fm, 256*C, 1),
             util.Reshape((256, C, W, H))
@@ -84,13 +91,16 @@ def go(arg):
 
     # A sample of 144 square images with 3 channels, of the chosen resolution
     # (144 so we can arrange them in a 12 by 12 grid)
-    sample = torch.Tensor(144, 3, W, H)
+    sample_init = torch.zeros(144, 3, W, H)
+
+    # Init sec ond half of sample with patches from test set
+    testbatch = util.readn(testloader, n=72)
+    sample_init[72:, :, :8, :8] = testbatch[:, :, :8, :8]
 
     optimizer = Adam(model.parameters(), lr=arg.lr)
 
     if torch.cuda.is_available():
         model.cuda()
-        sample = sample.cuda()
 
     for epoch in range(arg.epochs):
 
@@ -145,8 +155,11 @@ def go(arg):
 
             err_te.append(loss.data.item())
 
-        # Sample
-        sample.fill_(0)
+
+        sample = sample_init.clone()
+        if torch.cuda.is_available():
+            sample = sample.cuda()
+
         model.train(False)
         for i in tqdm.trange(W):
             for j in range(H):
@@ -177,6 +190,11 @@ if __name__ == "__main__":
                         dest="epochs",
                         help="Number of epochs.",
                         default=150, type=int)
+
+    parser.add_argument("-c", "--channels",
+                        dest="channels",
+                        help="Number of channels (aka featur maps) for the intermediate representations.",
+                        default=64, type=int)
 
     parser.add_argument("-b", "--batch-size",
                         dest="batch_size",

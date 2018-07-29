@@ -16,11 +16,6 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib.gridspec as gridspec
 
-
-PAD, SOS, EOS, UNK = 0, 1, 2, 3
-EXTRA_SYMBOLS = ['.pad', '.sos', '.eos', '.unk']
-
-
 def log_anneal(step, total, temp=1):
     """ Logistic annealing function
     :param step:
@@ -381,3 +376,25 @@ def gate(x):
     bottom = x[:, :half]
 
     return F.tanh(top) * F.sigmoid(bottom)
+
+def readn(loader, n):
+    """
+    Reads from the loader to fill a large batch of size n
+    :param loader: a dataloader
+    :param n:
+    :return:
+    """
+
+    batches = []
+    total = 0
+    for input in loader:
+        batch = input[0]
+        total += batch.size(0)
+        batches.append(batch)
+
+        if total > n:
+            break
+
+    result = torch.cat(batches, dim=0)
+
+    return result[:n]
