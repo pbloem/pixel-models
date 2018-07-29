@@ -1,7 +1,5 @@
 import string, re
 
-import torch
-
 import numpy as np
 import os, sys, math
 import datetime, pathlib
@@ -10,12 +8,14 @@ import random
 import torch
 from torch.autograd import Variable
 from torch import nn
+import torch.nn.functional as F
 
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib.gridspec as gridspec
+
 
 PAD, SOS, EOS, UNK = 0, 1, 2, 3
 EXTRA_SYMBOLS = ['.pad', '.sos', '.eos', '.unk']
@@ -362,3 +362,22 @@ def logsumexp(x, dim=None, keepdim=False):
         xm + torch.log(torch.sum(torch.exp(x - xm), dim, keepdim=True)))
     return x if keepdim else x.squeeze(dim)
 
+def gate(x):
+    """
+    Takes a batch x channels x rest... tensor and applies an LTSM-style gate activation.
+    - The top half of the channels are fed through a tanh activation, functioning as the activated neurons
+    - The bottom half are fed through a sigmoid, functioning as a mask
+    - The two are element-wise multiplied, and the result is returned.
+
+    :param x: The input tensor.
+    :return: The input tensor x with the activation applied.
+    """
+    b = x.size(0)
+    c = x.size(1)
+
+    half = c // 2
+
+    top    = x[:, half:]
+    bottom = x[:, :half]
+
+    return F.tanh(top) * F.sigmoid(bottom)

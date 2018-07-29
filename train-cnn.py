@@ -22,7 +22,7 @@ import util
 
 from tensorboardX import SummaryWriter
 
-from layers import PlainMaskedConv2d
+from layers import PlainMaskedConv2d, MaskedConv2d
 
 # CIFAR dimensions
 C, W, H = 3, 32, 32
@@ -30,8 +30,7 @@ C, W, H = 3, 32, 32
 
 """
 TODO:
- - Gated activation.
- - Eliminate blind spot.
+ - Condition the colors properly.
 
 """
 
@@ -53,18 +52,33 @@ def go(arg):
     fm = 2
     krn = 7
     pad = 3
-    model = Sequential(
-        PlainMaskedConv2d(False, 3,  fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-        PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-        Conv2d(fm, 256*C, 1),
-        util.Reshape((256, C, W, H))
-    )
+
+    if arg.model == 'simple':
+        model = Sequential(
+            PlainMaskedConv2d(False, 3,  fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            Conv2d(fm, 256*C, 1),
+            util.Reshape((256, C, W, H))
+        )
+    elif 'gated':
+
+        model = Sequential(
+            util.Lambda(lambda x: (x, x)),
+            MaskedConv2d(3,  fm, self_connection=False, k=krn, padding=pad),
+            MaskedConv2d(fm, fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, fm, self_connection=True,  k=krn, padding=pad),
+            util.Lambda(lambda xs: xs[1]),
+            Conv2d(fm, 256*C, 1),
+            util.Reshape((256, C, W, H))
+        )
+    else:
+        raise Exception('model "{}" not recognized'.format(arg.model))
 
     print('Constructed network', model)
 
@@ -153,6 +167,11 @@ if __name__ == "__main__":
 
     ## Parse the command line options
     parser = ArgumentParser()
+
+    parser.add_argument("-m", "--model",
+                        dest="model",
+                        help="Type of model to use: [simple, gated].",
+                        default='simple', type=str)
 
     parser.add_argument("-e", "--epochs",
                         dest="epochs",
