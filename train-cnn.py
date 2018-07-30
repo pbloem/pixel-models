@@ -24,6 +24,7 @@ from tensorboardX import SummaryWriter
 
 from layers import PlainMaskedConv2d, MaskedConv2d
 
+SEEDFRAC = 4
 
 """
 TODO:
@@ -135,10 +136,13 @@ def go(arg):
     sample_init_zeros = torch.zeros(72, C, W, H)
     sample_init_seeds = torch.zeros(72, C, W, H)
 
+
+    sh, sw = H//SEEDFRAC, W//SEEDFRAC
+
     # Init second half of sample with patches from test set, to seed the sampling
     testbatch = util.readn(testloader, n=12)
     testbatch = testbatch.unsqueeze(1).expand(12, 6, C, H, W).contiguous().view(72, 1, C, H, W).squeeze(1)
-    sample_init_seeds[:, :, :8, :8] = testbatch[:, :, :8, :8]
+    sample_init_seeds[:, :, :sh, :sw] = testbatch[:, :, :sh, :sw]
 
     optimizer = Adam(model.parameters(), lr=arg.lr)
 
