@@ -24,7 +24,7 @@ from tensorboardX import SummaryWriter
 
 from layers import PlainMaskedConv2d, MaskedConv2d
 
-SEEDFRAC = 4
+SEEDFRAC = 2
 
 """
 TODO:
@@ -33,7 +33,7 @@ TODO:
 
 """
 
-def draw_sample(seeds, model, seedsize=0):
+def draw_sample(seeds, model, seedsize=(0, 0)):
 
     b, c, h, w = seeds.size()
 
@@ -44,7 +44,7 @@ def draw_sample(seeds, model, seedsize=0):
 
     for i in tqdm.trange(h):
         for j in range(w):
-            if i < seedsize and j < seedsize:
+            if i < seedsize[0] and j < seedsize[1]:
                 continue
 
             for channel in range(c):
@@ -133,8 +133,8 @@ def go(arg):
 
     # A sample of 144 square images with 3 channels, of the chosen resolution
     # (144 so we can arrange them in a 12 by 12 grid)
-    sample_init_zeros = torch.zeros(72, C, W, H)
-    sample_init_seeds = torch.zeros(72, C, W, H)
+    sample_init_zeros = torch.zeros(72, C, H, W)
+    sample_init_seeds = torch.zeros(72, C, H, W)
 
 
     sh, sw = H//SEEDFRAC, W//SEEDFRAC
@@ -210,8 +210,8 @@ def go(arg):
             epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
         model.train(False)
-        sample_zeros = draw_sample(sample_init_zeros, model, seedsize=0)
-        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=8)
+        sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0))
+        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, sw))
         sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
