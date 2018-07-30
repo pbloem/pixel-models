@@ -57,6 +57,8 @@ def draw_sample(seeds, model, seedsize=0):
 
 def go(arg):
 
+    tbw = SummaryWriter(log_dir=arg.tb_dir)
+
     ## Load the data
     if arg.task == 'mnist':
         trainset = torchvision.datasets.MNIST(root=arg.data_dir, train=True,
@@ -81,7 +83,8 @@ def go(arg):
         testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
                                                  shuffle=False, num_workers=2)
         C, H, W = 3, 32, 32
-
+    else:
+        raise Exception('Task {} not recognized.'.format(arg.task))
 
     ## Set up the model
     fm = arg.channels
@@ -138,6 +141,7 @@ def go(arg):
     if torch.cuda.is_available():
         model.cuda()
 
+    instances_seen = 0
     for epoch in range(arg.epochs):
 
         # Train
@@ -162,6 +166,8 @@ def go(arg):
 
             loss = cross_entropy(result, target)
 
+            instances_seen += input.size(0)
+            tbw.add_scalar('pixel-models/training-loss', loss.data.item(), instances_seen)
             err_tr.append(loss.data.item())
 
             # Backward pass
@@ -191,15 +197,16 @@ def go(arg):
 
             err_te.append(loss.data.item())
 
+        tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
+        print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
+            epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
+
         model.train(False)
         sample_zeros = draw_sample(sample_init_zeros, model, seedsize=0)
         sample_seeds = draw_sample(sample_init_seeds, model, seedsize=8)
         sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
-
-        print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
-            epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
 if __name__ == "__main__":
 
@@ -259,7 +266,7 @@ if __name__ == "__main__":
     parser.add_argument("-T", "--tb-directory",
                         dest="tb_dir",
                         help="Tensorboard directory",
-                        default='./runs/score', type=str)
+                        default='./runs/pixel', type=str)
 
     parser.add_argument("-C", "--cache-directory",
                         dest="cache_dir",
