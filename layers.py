@@ -79,11 +79,11 @@ class MaskedConv2d(nn.Module):
 
         hx_in = hx
 
-        self.vertical.weight.data *= self.vmask
+        self.vertical.weight.data   *= self.vmask
         self.horizontal.weight.data *= self.hmask
 
-        vx = self.vertical.forward(vx)
-        hx = self.vertical.forward(hx)
+        vx =   self.vertical.forward(vx)
+        hx = self.horizontal.forward(hx)
 
         hx = hx + self.tohori(vx)
 
