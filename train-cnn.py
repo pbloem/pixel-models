@@ -88,39 +88,43 @@ def go(arg):
 
     ## Set up the model
     fm = arg.channels
-    krn = 7
-    pad = 3
+    krn = arg.kernel_size
+    pad = krn // 2
 
     if arg.model == 'simple':
-        model = Sequential(
-            PlainMaskedConv2d(False, C,  fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-            PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
-            Conv2d(fm, 256*C, 1),
+        modules = [
+            PlainMaskedConv2d(False, C,  fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True)
+        ]
+
+        for _ in range(arg.extra_layers):
+            modules.extend([PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True)])
+
+        modules.extend([
+            Conv2d(fm, 256 * C, 1),
             util.Reshape((256, C, W, H))
-        )
+        ])
+
+        model = Sequential(*modules)
+
     elif arg.model == 'gated':
 
-        model = Sequential(
+        modules = [
             Conv2d(C, fm, 1),
             util.Lambda(lambda x: (x, x)),
-            MaskedConv2d(fm, self_connection=False, k=krn, padding=pad),
-            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
-            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
-            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
-            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
-            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
-            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
-            MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
+            MaskedConv2d(fm, self_connection=False, k=krn, padding=pad)
+        ]
+
+        for _ in range(arg.extra_layers):
+            modules.extend([MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad)])
+
+        modules.extend([
             util.Lambda(lambda xs: xs[1]),
             Conv2d(fm, 256*C, 1),
             util.Reshape((256, C, W, H))
-        )
+        ])
+
+        model = Sequential(*modules)
+
     else:
         raise Exception('model "{}" not recognized'.format(arg.model))
 
@@ -227,6 +231,16 @@ if __name__ == "__main__":
                         dest="epochs",
                         help="Number of epochs.",
                         default=150, type=int)
+
+    parser.add_argument("-k", "--kernel_size",
+                        dest="kernel_size",
+                        help="Size of convolution kernel",
+                        default=7, type=int)
+
+    parser.add_argument("-x", "--extra",
+                        dest="extra_layers",
+                        help="Number of extra convolution layers (after the first one)",
+                        default=7, type=int)
 
     parser.add_argument("-c", "--channels",
                         dest="channels",
