@@ -24,12 +24,9 @@ from tensorboardX import SummaryWriter
 
 from layers import PlainMaskedConv2d, MaskedConv2d
 
-# CIFAR dimensions
-C, W, H = 3, 32, 32
 
 """
 TODO:
- - Provide seeds from test set.
  - Conditional input.
  - Condition the colors properly.
 
@@ -37,38 +34,54 @@ TODO:
 
 def draw_sample(seeds, model, seedsize=0):
 
+    b, c, h, w = seeds.size()
+
     sample = seeds.clone()
     if torch.cuda.is_available():
         sample = sample.cuda()
     sample = Variable(sample)
 
-    for i in tqdm.trange(W):
-        for j in range(H):
+    for i in tqdm.trange(h):
+        for j in range(w):
             if i < seedsize and j < seedsize:
                 continue
 
-            for c in range(C):
+            for channel in range(c):
                 result = model(Variable(sample, volatile=True))
-                probs = softmax(result[:, :, c, i, j]).data
+                probs = softmax(result[:, :, channel, i, j]).data
 
                 pixel_sample = torch.multinomial(probs, 1).float() / 255.
-                sample[:, c, i, j] = pixel_sample.squeeze()
+                sample[:, channel, i, j] = pixel_sample.squeeze()
 
     return sample
 
 def go(arg):
 
     ## Load the data
+    if arg.task == 'mnist':
+        trainset = torchvision.datasets.MNIST(root=arg.data_dir, train=True,
+                                                download=True, transform=ToTensor())
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=arg.batch_size,
+                                                  shuffle=True, num_workers=2)
 
-    trainset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=True,
-                                            download=True, transform=ToTensor())
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=arg.batch_size,
-                                              shuffle=True, num_workers=2)
+        testset = torchvision.datasets.MNIST(root=arg.data_dir, train=False,
+                                               download=True, transform=ToTensor())
+        testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
+                                                 shuffle=False, num_workers=2)
+        C, H, W = 1, 28, 28
 
-    testset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=False,
-                                           download=True, transform=ToTensor())
-    testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
-                                             shuffle=False, num_workers=2)
+    elif arg.task == 'cifar10':
+        trainset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=True,
+                                                download=True, transform=ToTensor())
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=arg.batch_size,
+                                                  shuffle=True, num_workers=2)
+
+        testset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=False,
+                                               download=True, transform=ToTensor())
+        testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
+                                                 shuffle=False, num_workers=2)
+        C, H, W = 3, 32, 32
+
 
     ## Set up the model
     fm = arg.channels
@@ -77,7 +90,7 @@ def go(arg):
 
     if arg.model == 'simple':
         model = Sequential(
-            PlainMaskedConv2d(False, 3,  fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
+            PlainMaskedConv2d(False, C,  fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
             PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
             PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
             PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True),
@@ -91,7 +104,7 @@ def go(arg):
     elif arg.model == 'gated':
 
         model = Sequential(
-            Conv2d(3, fm, 1),
+            Conv2d(C, fm, 1),
             util.Lambda(lambda x: (x, x)),
             MaskedConv2d(fm, self_connection=False, k=krn, padding=pad),
             MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad),
@@ -112,8 +125,8 @@ def go(arg):
 
     # A sample of 144 square images with 3 channels, of the chosen resolution
     # (144 so we can arrange them in a 12 by 12 grid)
-    sample_init_zeros = torch.zeros(72, 3, W, H)
-    sample_init_seeds = torch.zeros(72, 3, W, H)
+    sample_init_zeros = torch.zeros(72, C, W, H)
+    sample_init_seeds = torch.zeros(72, C, W, H)
 
     # Init second half of sample with patches from test set, to seed the sampling
     testbatch = util.readn(testloader, n=12)
@@ -192,6 +205,11 @@ if __name__ == "__main__":
 
     ## Parse the command line options
     parser = ArgumentParser()
+
+    parser.add_argument("-t", "--task",
+                        dest="task",
+                        help="Task: [mnist, cifar10].",
+                        default='simple', type=str)
 
     parser.add_argument("-m", "--model",
                         dest="model",
