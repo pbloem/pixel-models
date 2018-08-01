@@ -41,25 +41,30 @@ class MaskedConv2d(nn.Module):
 
     See figure 2 in _Conditional Image Generation with PixelCNN Decoders_, van den Oord 2016.
     """
-    def __init__(self, channels, self_connection=False, k=7, padding=3):
+    def __init__(self, channels, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3):
         """
         This is the "vanilla" masked CNN. Note that this creates a blind spot in the receptive field when stacked.
 
         :param self_connection: Whether to mask out the "current pixel" (ie. the middle of the convolution). In the
          first layer, this should be masked out, since it connects to the value we're trying to predict. In higher layers
-         it convery the intermediate representations we're building up.
+         it conveys the intermediate representations we're building up.
         :param channels: The number of channels of both the input and the output.
         """
         super().__init__()
 
         assert (k // 2) * 2 == k - 1 # only odd numbers accepted
 
-        # TODO: should these have biases?
-        self.vertical   = nn.Conv2d(channels,   channels*2, kernel_size=k, padding=padding)
-        self.horizontal = nn.Conv2d(channels,   channels*2, kernel_size=(1, k), padding=(0, padding))
-        self.tohori     = nn.Conv2d(channels*2, channels*2, kernel_size=1, padding=0)
-        self.tores      = nn.Conv2d(channels,   channels,   kernel_size=1, padding=0)
+        self.gates = gates
+        self.res_connection = res_connection
+        self.hv_connection = hv_connection
 
+        f = 2 if self.gates else 1
+
+        # TODO: should these have biases?
+        self.vertical   = nn.Conv2d(channels,   channels*f, kernel_size=k, padding=padding)
+        self.horizontal = nn.Conv2d(channels,   channels*f, kernel_size=(1, k), padding=(0, padding))
+        self.tohori     = nn.Conv2d(channels*f, channels*f, kernel_size=1, padding=0)
+        self.tores      = nn.Conv2d(channels,   channels,   kernel_size=1, padding=0)
 
         self.register_buffer('vmask', self.vertical.weight.data.clone())
         self.register_buffer('hmask', self.horizontal.weight.data.clone())
@@ -85,12 +90,15 @@ class MaskedConv2d(nn.Module):
         vx =   self.vertical.forward(vx)
         hx = self.horizontal.forward(hx)
 
-        hx = hx + self.tohori(vx)
+        if self.hv_connection:
+            hx = hx + self.tohori(vx)
 
-        vx = util.gate(vx)
-        hx = util.gate(hx)
+        if self.gates:
+            vx = util.gate(vx)
+            hx = util.gate(hx)
 
-        hx = self.tores(hx) + hx_in
+        if self.res_connection:
+            hx = self.tores(hx) + hx_in
 
         return vx, hx
 

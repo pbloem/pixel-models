@@ -112,15 +112,23 @@ def go(arg):
         modules = [
             Conv2d(C, fm, 1),
             util.Lambda(lambda x: (x, x)),
-            MaskedConv2d(fm, self_connection=False, k=krn, padding=pad)
+            MaskedConv2d(fm, self_connection=False,
+                         res_connection=not arg.no_res,
+                         gates=not arg.no_gates,
+                         hv_connection=not arg.no_hv,
+                         k=krn, padding=pad)
         ]
 
         for _ in range(arg.extra_layers):
-            modules.extend([MaskedConv2d(fm, self_connection=True,  k=krn, padding=pad)])
+            modules.extend([MaskedConv2d(fm, self_connection=True,
+                                         res_connection=not arg.no_res,
+                                         gates=not arg.no_gates,
+                                         hv_connection=not arg.no_hv,
+                                         k=krn, padding=pad)])
 
         modules.extend([
-            util.Lambda(lambda xs: xs[1]),
-            Conv2d(fm, 256*C, 1),
+            util.Lambda(lambda xs: torch.cat(xs, dim=1)),
+            Conv2d(fm * 2, 256*C, 1),
             util.Reshape((256, C, W, H))
         ])
 
@@ -230,6 +238,21 @@ if __name__ == "__main__":
                         dest="model",
                         help="Type of model to use: [simple, gated].",
                         default='simple', type=str)
+
+    parser.add_argument("--no-res",
+                        dest="no_res",
+                        help="Turns off the res connection in the gated layer",
+                        action='store_true')
+
+    parser.add_argument("--no-gates",
+                        dest="no_gates",
+                        help="Turns off the gates in the gated layer",
+                        action='store_true')
+
+    parser.add_argument("--no-hv",
+                        dest="no_hv",
+                        help="Turns off the connection between the horizontal and vertical stack in the gated layer",
+                        action='store_true')
 
     parser.add_argument("-e", "--epochs",
                         dest="epochs",
