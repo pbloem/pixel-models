@@ -98,7 +98,7 @@ class MaskedConv2d(nn.Module):
             hx = util.gate(hx)
 
         if self.res_connection:
-            hx = self.tores(hx) + hx_in
+            hx = self.tores(hx_in) + hx # switch the convolution from the paper
 
         return vx, hx
 
