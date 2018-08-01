@@ -80,15 +80,13 @@ class MaskedConv2d(nn.Module):
 
     def forward(self, x):
 
-        vx, hx = x
-
-        hx_in = hx
+        vxin, hxin = x
 
         self.vertical.weight.data   *= self.vmask
         self.horizontal.weight.data *= self.hmask
 
-        vx =   self.vertical.forward(vx)
-        hx = self.horizontal.forward(hx)
+        vx =   self.vertical.forward(vxin)
+        hx = self.horizontal.forward(hxin)
 
         if self.hv_connection:
             hx = hx + self.tohori(vx)
@@ -98,7 +96,7 @@ class MaskedConv2d(nn.Module):
             hx = util.gate(hx)
 
         if self.res_connection:
-            hx = hx_in + self.tores(hx)
+            hx = hxin + self.tores(hx)
 
         return vx, hx
 
