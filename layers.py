@@ -80,7 +80,7 @@ class MaskedConv2d(nn.Module):
 
     def forward(self, x):
 
-        vx, hx, = x
+        vx, hx = x
 
         hx_in = hx
 
@@ -98,7 +98,7 @@ class MaskedConv2d(nn.Module):
             hx = util.gate(hx)
 
         if self.res_connection:
-            hx = self.tores(hx_in) + hx # switch the convolution from the paper
+            hx = hx_in + self.tores(hx)
 
         return vx, hx
 
