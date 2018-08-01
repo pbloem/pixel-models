@@ -82,7 +82,7 @@ class MaskedConv2d(nn.Module):
 
         vx, hx, = x
 
-        hx_in = hx
+        hx_in = hx.clone()
 
         self.vertical.weight.data   *= self.vmask
         self.horizontal.weight.data *= self.hmask
