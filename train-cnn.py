@@ -119,7 +119,7 @@ def go(arg):
 
         for i in range(arg.extra_layers):
             modules.append(MaskedConv2d(fm, self_connection=i > 0,
-                                         res_connection=not arg.no_res,
+                                         res_connection=not arg.no_res if i > 0 else False,
                                          gates=not arg.no_gates,
                                          hv_connection=not arg.no_hv,
                                          k=krn, padding=pad,

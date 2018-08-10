@@ -12,7 +12,6 @@ class PlainMaskedConv2d(nn.Conv2d):
         """
         This is the "vanilla" masked CNN. Note that this creates a blind spot in the receptive field when stacked.
 
-
         :param self_connection: Whether to mask out the "current pixel" (ie. the middle of the convolution). In the
          first layer, this should be masked out, since it connects to the value we're trying to predict. In higher layers
          it convery the intermediate representations we're building up.
