@@ -28,6 +28,7 @@ SEEDFRAC = 2
 
 """
 TODO:
+ - Fix skip conn. bug
  - Conditional input.
  - Condition the colors properly.
 
@@ -93,12 +94,14 @@ def go(arg):
     pad = krn // 2
 
     if arg.model == 'simple':
-        modules = [
-            PlainMaskedConv2d(False, C,  fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True)
-        ]
 
-        for _ in range(arg.extra_layers):
-            modules.extend([PlainMaskedConv2d(True,  fm, fm, krn, 1, pad, bias=False), BatchNorm2d(fm), ReLU(True)])
+        modules = []
+        for i in range(arg.extra_layers + 1):
+            modules.append(
+                PlainMaskedConv2d(i > 0,  fm, fm, krn, 1, pad, bias=False))
+            if arg.batch_norm:
+                modules.append(BatchNorm2d(fm))
+            modules.append(ReLU(True))
 
         modules.extend([
             Conv2d(fm, 256 * C, 1),
@@ -111,20 +114,17 @@ def go(arg):
 
         modules = [
             Conv2d(C, fm, 1),
-            util.Lambda(lambda x: (x, x)),
-            MaskedConv2d(fm, self_connection=False,
-                         res_connection=not arg.no_res,
-                         gates=not arg.no_gates,
-                         hv_connection=not arg.no_hv,
-                         k=krn, padding=pad)
+            util.Lambda(lambda x: (x, x))
         ]
 
-        for _ in range(arg.extra_layers):
-            modules.extend([MaskedConv2d(fm, self_connection=True,
+        for i in range(arg.extra_layers):
+            modules.append(MaskedConv2d(fm, self_connection=i > 0,
                                          res_connection=not arg.no_res,
                                          gates=not arg.no_gates,
                                          hv_connection=not arg.no_hv,
-                                         k=krn, padding=pad)])
+                                         k=krn, padding=pad))
+            if arg.batch_norm:
+                modules.append(BatchNorm2d(fm))
 
         modules.extend([
             util.Lambda(lambda xs: torch.cat(xs, dim=1)),
@@ -252,6 +252,12 @@ if __name__ == "__main__":
     parser.add_argument("--no-hv",
                         dest="no_hv",
                         help="Turns off the connection between the horizontal and vertical stack in the gated layer",
+                        action='store_true')
+
+
+    parser.add_argument("--batch-norm",
+                        dest="batch_norm",
+                        help="Turns on batch normalization after each layer",
                         action='store_true')
 
     parser.add_argument("-e", "--epochs",

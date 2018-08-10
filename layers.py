@@ -60,7 +60,6 @@ class MaskedConv2d(nn.Module):
 
         f = 2 if self.gates else 1
 
-        # TODO: should these have biases?
         self.vertical   = nn.Conv2d(channels,   channels*f, kernel_size=k, padding=padding, bias=False)
         self.horizontal = nn.Conv2d(channels,   channels*f, kernel_size=(1, k), padding=(0, padding), bias=False)
         self.tohori     = nn.Conv2d(channels*f, channels*f, kernel_size=1, padding=0, bias=False)
