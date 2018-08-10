@@ -98,7 +98,7 @@ def go(arg):
         modules = []
         for i in range(arg.extra_layers + 1):
             modules.append(
-                PlainMaskedConv2d(i > 0,  fm, fm, krn, 1, pad, bias=False))
+                PlainMaskedConv2d(i > 0,  fm if i > 0 else C, fm, krn, 1, pad, bias=False))
             if arg.batch_norm:
                 modules.append(BatchNorm2d(fm))
             modules.append(ReLU(True))
