@@ -122,9 +122,8 @@ def go(arg):
                                          res_connection=not arg.no_res,
                                          gates=not arg.no_gates,
                                          hv_connection=not arg.no_hv,
-                                         k=krn, padding=pad))
-            if arg.batch_norm:
-                modules.append(BatchNorm2d(fm))
+                                         k=krn, padding=pad,
+                                         batch_norm = arg.batch_norm))
 
         modules.extend([
             util.Lambda(lambda xs: torch.cat(xs, dim=1)),
@@ -232,7 +231,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--task",
                         dest="task",
                         help="Task: [mnist, cifar10].",
-                        default='simple', type=str)
+                        default='mnist', type=str)
 
     parser.add_argument("-m", "--model",
                         dest="model",

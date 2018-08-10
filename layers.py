@@ -41,7 +41,7 @@ class MaskedConv2d(nn.Module):
 
     See figure 2 in _Conditional Image Generation with PixelCNN Decoders_, van den Oord 2016.
     """
-    def __init__(self, channels, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3):
+    def __init__(self, channels, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3, batch_norm=False):
         """
         This is the "vanilla" masked CNN. Note that this creates a blind spot in the receptive field when stacked.
 
@@ -77,9 +77,18 @@ class MaskedConv2d(nn.Module):
         # zero the right half of the hmask
         self.hmask[:, :, :, k // 2 + self_connection:] = 0
 
+        self.bn = batch_norm
+        if self.bn:
+            self.vbn = nn.BatchNorm2d(channels)
+            self.hbn = nn.BatchNorm2d(channels)
+
     def forward(self, x):
 
         vxin, hxin = x
+
+        if self.bn:
+            vxin = self.vbn(vxin)
+            hxin = self.hbn(hxin)
 
         self.vertical.weight.data   *= self.vmask
         self.horizontal.weight.data *= self.hmask
