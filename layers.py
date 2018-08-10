@@ -1,6 +1,7 @@
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 import util
 
@@ -40,7 +41,7 @@ class MaskedConv2d(nn.Module):
 
     See figure 2 in _Conditional Image Generation with PixelCNN Decoders_, van den Oord 2016.
     """
-    def __init__(self, channels, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3, batch_norm=False):
+    def __init__(self, channels, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3):
         """
         This is the "vanilla" masked CNN. Note that this creates a blind spot in the receptive field when stacked.
 
@@ -48,6 +49,7 @@ class MaskedConv2d(nn.Module):
          first layer, this should be masked out, since it connects to the value we're trying to predict. In higher layers
          it conveys the intermediate representations we're building up.
         :param channels: The number of channels of both the input and the output.
+        :param conditional: Size of the value to condition on. None if no conditional
         """
         super().__init__()
 
@@ -76,18 +78,9 @@ class MaskedConv2d(nn.Module):
         # zero the right half of the hmask
         self.hmask[:, :, :, k // 2 + self_connection:] = 0
 
-        self.bn = batch_norm
-        if self.bn:
-            self.vbn = nn.BatchNorm2d(channels)
-            self.hbn = nn.BatchNorm2d(channels)
-
     def forward(self, x):
 
         vxin, hxin = x
-
-        if self.bn:
-            vxin = self.vbn(vxin)
-            hxin = self.hbn(hxin)
 
         self.vertical.weight.data   *= self.vmask
         self.horizontal.weight.data *= self.hmask
@@ -107,3 +100,96 @@ class MaskedConv2d(nn.Module):
 
         return vx, hx
 
+class CMaskedConv2d(nn.Module):
+    """
+    Masked convolution, with location independent conditional.
+
+    """
+    def __init__(self, input_size, conditional_size, channels, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3):
+
+        super().__init__()
+
+        assert (k // 2) * 2 == k - 1 # only odd numbers accepted
+
+        self.gates = gates
+        self.res_connection = res_connection
+        self.hv_connection = hv_connection
+
+        f = 2 if self.gates else 1
+
+        self.vertical   = nn.Conv2d(channels,   channels*f, kernel_size=k, padding=padding, bias=False)
+        self.horizontal = nn.Conv2d(channels,   channels*f, kernel_size=(1, k), padding=(0, padding), bias=False)
+        self.tohori     = nn.Conv2d(channels*f, channels*f, kernel_size=1, padding=0, bias=False)
+        self.tores      = nn.Conv2d(channels,   channels,   kernel_size=1, padding=0, bias=False)
+
+        self.register_buffer('vmask', self.vertical.weight.data.clone())
+        self.register_buffer('hmask', self.horizontal.weight.data.clone())
+
+        self.vmask.fill_(1)
+        self.hmask.fill_(1)
+
+        # zero the bottom half rows of the vmask
+        self.vmask[:, :, k // 2 :, :] = 0
+
+        # zero the right half of the hmask
+        self.hmask[:, :, :, k // 2 + self_connection:] = 0
+
+        fr = util.prod(conditional_size)
+        to = util.prod(input_size)
+
+        # The conditional weights
+        self.vhf = nn.Linear(fr, to)
+        self.vhg = nn.Linear(fr, to)
+        self.vvf = nn.Linear(fr, to)
+        self.vvg = nn.Linear(fr, to)
+
+    def forward(self, vxin, hxin, h):
+
+        self.vertical.weight.data   *= self.vmask
+        self.horizontal.weight.data *= self.hmask
+
+        vx =   self.vertical.forward(vxin)
+        hx = self.horizontal.forward(hxin)
+
+        if self.hv_connection:
+            hx = hx + self.tohori(vx)
+
+        if self.gates:
+            vx = self.gate(vx, h,  (self.vvf, self.vvg))
+            hx = self.gate(hx, h, (self.vhf, self.vhg))
+
+        if self.res_connection:
+            hx = hxin + self.tores(hx)
+
+        return vx, hx
+
+    def gate(x, cond, weights):
+        """
+        Takes a batch x channels x rest... tensor and applies an LTSM-style gate activation.
+        - The top half of the channels are fed through a tanh activation, functioning as the activated neurons
+        - The bottom half are fed through a sigmoid, functioning as a mask
+        - The two are element-wise multiplied, and the result is returned.
+
+        :param x: The input tensor.
+        :return: The input tensor x with the activation applied.
+        """
+        b = x.size(0)
+        imdim = x.size()[1:]
+
+        # compute conditional term
+        vf, vg = weights
+
+        tan_bias = vf(cond.view(b, -1)).view(x.size())
+        sig_bias = vg(cond.view(b, -1)).view(x.size())
+
+        # compute convolution term
+        b = x.size(0)
+        c = x.size(1)
+
+        half = c // 2
+
+        top = x[:, half:]
+        bottom = x[:, :half]
+
+        # apply gate and return
+        return F.tanh(top + tan_bias) * F.sigmoid(bottom + sig_bias)

@@ -377,7 +377,7 @@ def gate(x):
 
     return F.tanh(top) * F.sigmoid(bottom)
 
-def readn(loader, n):
+def readn(loader, n, cls=False, maxval=None):
     """
     Reads from the loader to fill a large batch of size n
     :param loader: a dataloader
@@ -388,7 +388,11 @@ def readn(loader, n):
     batches = []
     total = 0
     for input in loader:
-        batch = input[0]
+        batch = input[0] if not cls else input[1]
+
+        if cls:
+            batch = one_hot(batch, maxval)
+
         total += batch.size(0)
         batches.append(batch)
 
@@ -398,3 +402,17 @@ def readn(loader, n):
     result = torch.cat(batches, dim=0)
 
     return result[:n]
+
+def one_hot(integers, maxval):
+    """
+    Converts a list of integer values to a one hot coded batch
+    :param integers:
+    :param maxval:
+    :return:
+    """
+
+    result = torch.cuda.FloatTensor(integers.size(0), maxval).zero_()
+    return result.scatter_(1, integers, 1)
+
+
+

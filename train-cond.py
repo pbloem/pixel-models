@@ -10,6 +10,7 @@ from torchvision import utils
 
 from torch.nn.functional import binary_cross_entropy, relu, nll_loss, cross_entropy, softmax
 from torch.nn import Embedding, Conv2d, Sequential, BatchNorm2d, ReLU
+from torch import nn
 from torch.optim import Adam
 
 import nltk
@@ -22,25 +23,25 @@ import util
 
 from tensorboardX import SummaryWriter
 
-from layers import PlainMaskedConv2d, MaskedConv2d
+from layers import PlainMaskedConv2d, MaskedConv2d, CMaskedConv2d
 
 SEEDFRAC = 2
 
 """
 TODO:
- - Conditional input.
  - Condition the colors properly.
-
 """
 
-def draw_sample(seeds, model, seedsize=(0, 0)):
+def draw_sample(seeds, classes, model, seedsize=(0, 0)):
 
     b, c, h, w = seeds.size()
 
     sample = seeds.clone()
+
     if torch.cuda.is_available():
-        sample = sample.cuda()
-    sample = Variable(sample)
+        sample, classes = sample.cuda(), classes.cuda()
+
+    sample, classes = Variable(sample), Variable(classes)
 
     for i in tqdm.trange(h):
         for j in range(w):
@@ -48,13 +49,52 @@ def draw_sample(seeds, model, seedsize=(0, 0)):
                 continue
 
             for channel in range(c):
-                result = model(sample)
+                result = model(sample, classes)
                 probs = softmax(result[:, :, channel, i, j]).data
 
                 pixel_sample = torch.multinomial(probs, 1).float() / 255.
                 sample[:, channel, i, j] = pixel_sample.squeeze()
 
     return sample
+
+class Gated(nn.Module):
+
+    def __init__(self, input_size, conditional_size, channels, num_layers, k=7, padding=3):
+        super().__init__()
+
+        c, h, w = input_size
+
+        self.conv1 = nn.Conv2d(c, channels)
+
+        self.gated_layers = nn.ModuleList()
+        for i in range(num_layers):
+            self.gated_layers.append(
+                CMaskedConv2d(
+                    (channels, h, w), conditional_size,
+                    channels, self_connection=i > 0,
+                    res_connection= i > 0,
+                    gates=True,
+                    hv_connection=True,
+                    k=k, padding=padding)
+            )
+
+        self.conv2 = nn.Conv2d(channels * 2, 256*c, 1)
+
+    def forward(self, x, h):
+
+        b, c, h, w = x.size(0)
+
+        x = self.conv1(x)
+
+        xh, xv = x, x
+
+        for layer in self.gated_layers:
+            xh, xv = layer((xh, xv), h)
+
+        x = torch.cat([xh, xv], dim=1)
+        x = self.conv2(x)
+
+        return x.view(b, 256, c, h, w)
 
 def go(arg):
 
@@ -72,6 +112,7 @@ def go(arg):
         testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
                                                  shuffle=False, num_workers=2)
         C, H, W = 1, 28, 28
+        CLS = 10
 
     elif arg.task == 'cifar10':
         trainset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=True,
@@ -84,53 +125,15 @@ def go(arg):
         testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
                                                  shuffle=False, num_workers=2)
         C, H, W = 3, 32, 32
+        CLS = 10
     else:
         raise Exception('Task {} not recognized.'.format(arg.task))
 
     ## Set up the model
-    fm = arg.channels
-    krn = arg.kernel_size
-    pad = krn // 2
 
-    if arg.model == 'simple':
+    if arg.model == 'gated':
 
-        modules = []
-        for i in range(arg.extra_layers + 1):
-            modules.append(
-                PlainMaskedConv2d(i > 0,  fm if i > 0 else C, fm, krn, 1, pad, bias=False))
-            if arg.batch_norm:
-                modules.append(BatchNorm2d(fm))
-            modules.append(ReLU(True))
-
-        modules.extend([
-            Conv2d(fm, 256 * C, 1),
-            util.Reshape((256, C, W, H))
-        ])
-
-        model = Sequential(*modules)
-
-    elif arg.model == 'gated':
-
-        modules = [
-            Conv2d(C, fm, 1),
-            util.Lambda(lambda x: (x, x))
-        ]
-
-        for i in range(arg.extra_layers):
-            modules.append(MaskedConv2d(fm, self_connection=i > 0,
-                                         res_connection=not arg.no_res if i > 0 else False,
-                                         gates=not arg.no_gates,
-                                         hv_connection=not arg.no_hv,
-                                         k=krn, padding=pad,
-                                         batch_norm = arg.batch_norm))
-
-        modules.extend([
-            util.Lambda(lambda xs: torch.cat(xs, dim=1)),
-            Conv2d(fm * 2, 256*C, 1),
-            util.Reshape((256, C, W, H))
-        ])
-
-        model = Sequential(*modules)
+        model = Gated((C, H, W), (CLS,), arg.channels, num_layers=arg.num_layers, k=arg.kernel_size, padding=arg.kernel_size//2)
 
     else:
         raise Exception('model "{}" not recognized'.format(arg.model))
@@ -146,9 +149,16 @@ def go(arg):
     sh, sw = H//SEEDFRAC, W//SEEDFRAC
 
     # Init second half of sample with patches from test set, to seed the sampling
-    testbatch = util.readn(testloader, n=12)
+    testbatch     = util.readn(testloader, n=12)
+    testcls_seeds = util.readn(testloader, n=12, cls=True, maxval=CLS)
+
     testbatch = testbatch.unsqueeze(1).expand(12, 6, C, H, W).contiguous().view(72, 1, C, H, W).squeeze(1)
     sample_init_seeds[:, :, :sh, :sw] = testbatch[:, :, :sh, :sw]
+    testcls_seeds = testcls_seeds.unsqueeze(1).expand(12, 6, CLS).contiguous().view(72, 1, CLS).squeeze(1)
+
+    # Get classes for the unseeded part
+    testcls_zeros = util.readn(testloader, n=24, cls=True, maxval=CLS)[12:]
+    testcls_zeros = testcls_zeros.unsqueeze(1).expand(12, 6, CLS).contiguous().view(72, 1, CLS).squeeze(1)
 
     optimizer = Adam(model.parameters(), lr=arg.lr)
 
@@ -162,21 +172,24 @@ def go(arg):
         err_tr = []
         model.train(True)
 
-        for i, (input, _) in enumerate(tqdm.tqdm(trainloader)):
+        for i, (input, classes) in enumerate(tqdm.tqdm(trainloader)):
             if arg.limit is not None and i * arg.batch_size > arg.limit:
                 break
 
             # Prepare the input
             b, c, w, h = input.size()
+
+            classes = util.one_hot(classes, CLS)
+
             if torch.cuda.is_available():
-                input = input.cuda()
+                input, classes = input.cuda(), classes.cuda()
 
             target = (input.data * 255).long()
 
-            input, target = Variable(input), Variable(target)
+            input, classes, target = Variable(input), Variable(classes), Variable(target)
 
             # Forward pass
-            result = model(input)
+            result = model(input, classes)
 
             loss = cross_entropy(result, target)
 
@@ -196,17 +209,19 @@ def go(arg):
         err_te = []
         model.train(False)
 
-        for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
+        for i, (input, classes) in enumerate(tqdm.tqdm(testloader)):
             if arg.limit is not None and i * arg.batch_size > arg.limit:
                 break
 
+            classes = util.one_hot(classes, CLS)
+
             if torch.cuda.is_available():
-                input = input.cuda()
+                input, classes = input.cuda(), classes.cuda()
 
             target = (input.data * 255).long()
-            input, target = Variable(input), Variable(target)
+            input, classes, target = Variable(input), Variable(classes), Variable(target)
 
-            result = model(input)
+            result = model(input, classes)
             loss = cross_entropy(result, target)
 
             err_te.append(loss.data.item())
@@ -216,8 +231,8 @@ def go(arg):
             epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
         model.train(False)
-        sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0))
-        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, sw))
+        sample_zeros = draw_sample(sample_init_zeros, testcls_zeros, model, seedsize=(0, 0))
+        sample_seeds = draw_sample(sample_init_seeds, testcls_seeds, model, seedsize=(sh, sw))
         sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
@@ -234,8 +249,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-m", "--model",
                         dest="model",
-                        help="Type of model to use: [simple, gated].",
-                        default='simple', type=str)
+                        help="Type of model to use: [gated].",
+                        default='gated', type=str)
 
     parser.add_argument("--no-res",
                         dest="no_res",
@@ -268,9 +283,9 @@ if __name__ == "__main__":
                         help="Size of convolution kernel",
                         default=7, type=int)
 
-    parser.add_argument("-x", "--extra",
-                        dest="extra_layers",
-                        help="Number of extra convolution layers (after the first one)",
+    parser.add_argument("-x", "--num_layers",
+                        dest="num_layers",
+                        help="Number of convolution layers",
                         default=7, type=int)
 
     parser.add_argument("-c", "--channels",
