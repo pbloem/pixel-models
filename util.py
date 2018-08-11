@@ -359,7 +359,7 @@ def logsumexp(x, dim=None, keepdim=False):
 
 def gate(x):
     """
-    Takes a batch x channels x rest... tensor and applies an LTSM-style gate activation.
+    Takes a batch x channels x rest... tensor and applies an LTSM-style gated activation.
     - The top half of the channels are fed through a tanh activation, functioning as the activated neurons
     - The bottom half are fed through a sigmoid, functioning as a mask
     - The two are element-wise multiplied, and the result is returned.
@@ -372,8 +372,8 @@ def gate(x):
 
     half = c // 2
 
-    top    = x[:, half:]
-    bottom = x[:, :half]
+    top    = x[:, :half]
+    bottom = x[:, half:]
 
     return F.tanh(top) * F.sigmoid(bottom)
 
