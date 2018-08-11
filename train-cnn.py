@@ -138,7 +138,7 @@ def go(arg):
 
         modules.extend([
             util.Lambda(lambda xs: torch.cat(xs, dim=1)),
-            Conv2d(fm * 2, 256*C, 1),
+            Conv2d(fm * 2, 256*C, 1, groups=C*2),
             util.Reshape((256, C, W, H))
         ])
 

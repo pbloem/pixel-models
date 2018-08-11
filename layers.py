@@ -86,16 +86,16 @@ class MaskedConv2d(nn.Module):
 
         # print(self_connection + 0, self_connection, m)
 
-        # for c in range(0, colors):
-        #     f, t = c * pc, (c+1) * pc
-        #
-        #     if f > 0:
-        #         self.hmask[f:t, :f, 0, m] = 1
-        #         self.hmask[f+channels:t+channels, :f, 0, m] = 1
+        for c in range(0, colors):
+            f, t = c * pc, (c+1) * pc
 
-            # if self_connection:
-            #     self.hmask[f:t, :f+pc, 0, m] = 1
-            #     self.hmask[f + channels:t + channels, :f+pc, 0, m] = 1
+            if f > 0:
+                self.hmask[f:t, :f, 0, m] = 1
+                self.hmask[f+channels:t+channels, :f, 0, m] = 1
+
+            if self_connection:
+                self.hmask[f:t, :f+pc, 0, m] = 1
+                self.hmask[f + channels:t + channels, :f+pc, 0, m] = 1
 
         print(self.hmask[:, :, 0, m])
 
@@ -117,7 +117,7 @@ class MaskedConv2d(nn.Module):
             hx = util.gate(hx)
 
         if self.res_connection:
-            hx = hxin + hx # self.tores(hx)
+            hx = hxin + self.tores(hx)
 
         return vx, hx
 
