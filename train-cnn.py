@@ -109,7 +109,7 @@ def go(arg):
     if arg.model == 'simple':
 
         modules = []
-        for i in range(arg.extra_layers + 1):
+        for i in range(arg.num_layers):
             modules.append(
                 PlainMaskedConv2d(i > 0,  fm if i > 0 else C, fm, krn, 1, pad, bias=False))
 
@@ -125,12 +125,12 @@ def go(arg):
     elif arg.model == 'gated':
 
         modules = [
-            Conv2d(C, fm, 1),
+            Conv2d(C, fm, 1, groups=C),  # the groups allow us to block out certain colors in the first layer
             util.Lambda(lambda x: (x, x))
         ]
 
-        for i in range(arg.extra_layers):
-            modules.append(MaskedConv2d(fm, self_connection=i > 0,
+        for i in range(arg.num_layers):
+            modules.append(MaskedConv2d(fm, colors=3, self_connection=i > 0,
                                          res_connection=not arg.no_res if i > 0 else False,
                                          gates=not arg.no_gates,
                                          hv_connection=not arg.no_hv,
@@ -274,15 +274,15 @@ if __name__ == "__main__":
                         help="Size of convolution kernel",
                         default=7, type=int)
 
-    parser.add_argument("-x", "--extra",
-                        dest="extra_layers",
+    parser.add_argument("-x", "--num-layers",
+                        dest="num_layers",
                         help="Number of extra convolution layers (after the first one)",
                         default=7, type=int)
 
     parser.add_argument("-c", "--channels",
                         dest="channels",
-                        help="Number of channels (aka featur maps) for the intermediate representations.",
-                        default=64, type=int)
+                        help="Number of channels (aka feature maps) for the intermediate representations. Should be divisible by the number of colors.",
+                        default=63, type=int)
 
     parser.add_argument("-b", "--batch-size",
                         dest="batch_size",

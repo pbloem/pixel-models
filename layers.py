@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-import util
+import util, sys
 
 class PlainMaskedConv2d(nn.Conv2d):
     """
@@ -41,7 +41,7 @@ class MaskedConv2d(nn.Module):
 
     See figure 2 in _Conditional Image Generation with PixelCNN Decoders_, van den Oord 2016.
     """
-    def __init__(self, channels, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3):
+    def __init__(self, channels, colors, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3):
         """
         This is the "vanilla" masked CNN. Note that this creates a blind spot in the receptive field when stacked.
 
@@ -77,6 +77,19 @@ class MaskedConv2d(nn.Module):
 
         # zero the right half of the hmask
         self.hmask[:, :, :, k // 2 + self_connection:] = 0
+
+
+        # Add connections to "previous" colors (G is allowed to see R, and B is allowed to see R and G)
+        if not self_connection:
+
+            m = k // 2 + 1 # index of the middle of the convolution
+            pc = channels // colors  # channels per color
+
+            for c in range(1, colors):
+                f, t = c * pc, (c+1) * pc
+
+                self.hmask[f:t, :f, 0, m] = 1
+                self.hmask[f+channels:t+channels, :f, 0, m] = 1
 
     def forward(self, x):
 
