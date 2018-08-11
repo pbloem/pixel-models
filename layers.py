@@ -93,6 +93,7 @@ class MaskedConv2d(nn.Module):
                 self.hmask[f:t, :f, 0, m] = 1
                 self.hmask[f+channels:t+channels, :f, 0, m] = 1
 
+            # Connections to "current" colors (but not "future colors", R is not allowed to see G and B)
             if self_connection:
                 self.hmask[f:t, :f+pc, 0, m] = 1
                 self.hmask[f + channels:t + channels, :f+pc, 0, m] = 1
