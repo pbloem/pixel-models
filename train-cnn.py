@@ -148,7 +148,7 @@ def go(arg):
     # Init second half of sample with patches from test set, to seed the sampling
     testbatch = util.readn(testloader, n=12)
     testbatch = testbatch.unsqueeze(1).expand(12, 6, C, H, W).contiguous().view(72, 1, C, H, W).squeeze(1)
-    sample_init_seeds[:, :, :sh, :sw] = testbatch[:, :, :sh, :sw]
+    sample_init_seeds[:, :, :sh, :] = testbatch[:, :, :sh, :]
 
     optimizer = Adam(model.parameters(), lr=arg.lr)
 
