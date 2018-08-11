@@ -131,7 +131,7 @@ def go(arg):
 
         for i in range(arg.num_layers):
             modules.append(MaskedConv2d(fm, colors=3, self_connection=i > 0,
-                                         res_connection=not arg.no_res if i > 0 else False,
+                                         res_connection=(not arg.no_res) if i > 0 else False,
                                          gates=not arg.no_gates,
                                          hv_connection=not arg.no_hv,
                                          k=krn, padding=pad))
