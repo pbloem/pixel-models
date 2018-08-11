@@ -139,7 +139,8 @@ def go(arg):
         modules.extend([
             util.Lambda(lambda xs: xs[1]),
             Conv2d(fm, 256*C, 1, groups=C),
-            util.Reshape((256, C, W, H))
+            util.Reshape((C, 256, W, H)),
+            util.Lambda(lambda x: x.transpose(1, 2)) # index for batched tensor
         ])
 
         model = Sequential(*modules)
