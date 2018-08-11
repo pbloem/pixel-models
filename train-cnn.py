@@ -4,7 +4,7 @@ import torch
 import torchvision
 
 from torch.autograd import Variable
-from torchvision.transforms import CenterCrop, ToTensor, Compose, Lambda, Resize
+from torchvision.transforms import CenterCrop, ToTensor, Compose, Lambda, Resize, Grayscale
 from torchvision.datasets import coco
 from torchvision import utils
 
@@ -84,6 +84,20 @@ def go(arg):
         testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
                                                  shuffle=False, num_workers=2)
         C, H, W = 3, 32, 32
+
+    elif arg.task == 'cifar-gs':
+        transform = Compose([Grayscale(), ToTensor()])
+
+        trainset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=True,
+                                                download=True, transform=transform)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=arg.batch_size,
+                                                  shuffle=True, num_workers=2)
+
+        testset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=False,
+                                               download=True, transform=transform)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
+                                                 shuffle=False, num_workers=2)
+        C, H, W = 1, 32, 32
     else:
         raise Exception('Task {} not recognized.'.format(arg.task))
 
