@@ -403,7 +403,6 @@ def readn(loader, n, cls=False, maxval=None):
 
     return result[:n]
 
-FT = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
 def one_hot(integers, maxval):
     """
@@ -412,6 +411,8 @@ def one_hot(integers, maxval):
     :param maxval:
     :return:
     """
+
+    FT = torch.cuda.FloatTensor if integers.is_cuda else torch.FloatTensor
 
     result = FT(integers.size(0), maxval).zero_()
     result.scatter_(dim=1, index=integers.unsqueeze(1), value=1)
