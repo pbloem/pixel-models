@@ -215,7 +215,7 @@ def go(arg):
 
         model.train(False)
         sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0))
-        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, sw))
+        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, W))
         sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
