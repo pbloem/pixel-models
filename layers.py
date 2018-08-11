@@ -79,11 +79,12 @@ class MaskedConv2d(nn.Module):
         # self.hmask[:, :, :, k // 2 + self_connection:] = 0
         self.hmask[:, :, :, k // 2:] = 0
 
-
         # Add connections to "previous" colors (G is allowed to see R, and B is allowed to see R and G)
 
-        m = k // 2 + 1 # index of the middle of the convolution
+        m = k // 2  # index of the middle of the convolution
         pc = channels // colors  # channels per color
+
+        # print(self_connection + 0, self_connection, m)
 
         for c in range(0, colors):
             f, t = c * pc, (c+1) * pc
@@ -96,7 +97,7 @@ class MaskedConv2d(nn.Module):
                 self.hmask[f:t, :f+pc, 0, m] = 1
                 self.hmask[f + channels:t + channels, :f+pc, 0, m] = 1
 
-        print(self.hmask[:, :, 0, m])
+        # print(self.hmask[:, :, 0, m])
 
     def forward(self, x):
 
