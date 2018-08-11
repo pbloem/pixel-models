@@ -63,8 +63,8 @@ class MaskedConv2d(nn.Module):
 
         self.vertical   = nn.Conv2d(channels,   channels*f, kernel_size=k, padding=padding, bias=False)
         self.horizontal = nn.Conv2d(channels,   channels*f, kernel_size=(1, k), padding=(0, padding), bias=False)
-        self.tohori     = nn.Conv2d(channels*f, channels*f, kernel_size=1, padding=0, bias=False)
-        self.tores      = nn.Conv2d(channels,   channels,   kernel_size=1, padding=0, bias=False)
+        self.tohori     = nn.Conv2d(channels*f, channels*f, kernel_size=1, padding=0, bias=False, groups=colors)
+        self.tores      = nn.Conv2d(channels,   channels,   kernel_size=1, padding=0, bias=False, groups=colors)
 
         self.register_buffer('vmask', self.vertical.weight.data.clone())
         self.register_buffer('hmask', self.horizontal.weight.data.clone())
