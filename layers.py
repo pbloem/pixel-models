@@ -163,24 +163,25 @@ class CMaskedConv2d(nn.Module):
 
         return vx, hx
 
-    def gate(x, cond, weights):
+    def gate(self, x, cond, weights):
         """
         Takes a batch x channels x rest... tensor and applies an LTSM-style gate activation.
         - The top half of the channels are fed through a tanh activation, functioning as the activated neurons
         - The bottom half are fed through a sigmoid, functioning as a mask
         - The two are element-wise multiplied, and the result is returned.
 
+        Conditional and weights are used to compute a bias based on the conditional element
+
         :param x: The input tensor.
         :return: The input tensor x with the activation applied.
         """
-        b = x.size(0)
-        imdim = x.size()[1:]
+        b, c, h, w = x.size()
 
         # compute conditional term
         vf, vg = weights
 
-        tan_bias = vf(cond.view(b, -1)).view(x.size())
-        sig_bias = vg(cond.view(b, -1)).view(x.size())
+        tan_bias = vf(cond.view(b, -1)).view((b, c//2, h, w))
+        sig_bias = vg(cond.view(b, -1)).view((b, c//2, h, w))
 
         # compute convolution term
         b = x.size(0)

@@ -403,6 +403,8 @@ def readn(loader, n, cls=False, maxval=None):
 
     return result[:n]
 
+FT = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+
 def one_hot(integers, maxval):
     """
     Converts a list of integer values to a one hot coded batch
@@ -411,8 +413,20 @@ def one_hot(integers, maxval):
     :return:
     """
 
-    result = torch.cuda.FloatTensor(integers.size(0), maxval).zero_()
-    return result.scatter_(1, integers, 1)
+    result = FT(integers.size(0), maxval).zero_()
+    result.scatter_(dim=1, index=integers.unsqueeze(1), value=1)
+
+    return result
+
+
+def prod(xs):
+    res = 1
+
+    for x in xs:
+        res *= x
+
+    return res
+
 
 
 

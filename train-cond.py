@@ -64,7 +64,7 @@ class Gated(nn.Module):
 
         c, h, w = input_size
 
-        self.conv1 = nn.Conv2d(c, channels)
+        self.conv1 = nn.Conv2d(c, channels, 1)
 
         self.gated_layers = nn.ModuleList()
         for i in range(num_layers):
@@ -80,16 +80,16 @@ class Gated(nn.Module):
 
         self.conv2 = nn.Conv2d(channels * 2, 256*c, 1)
 
-    def forward(self, x, h):
+    def forward(self, x, cond):
 
-        b, c, h, w = x.size(0)
+        b, c, h, w = x.size()
 
         x = self.conv1(x)
 
         xh, xv = x, x
 
         for layer in self.gated_layers:
-            xh, xv = layer((xh, xv), h)
+            xh, xv = layer(xh, xv, cond)
 
         x = torch.cat([xh, xv], dim=1)
         x = self.conv2(x)
