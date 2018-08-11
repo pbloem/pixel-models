@@ -64,21 +64,22 @@ class Gated(nn.Module):
 
         c, h, w = input_size
 
-        self.conv1 = nn.Conv2d(c, channels, 1)
+        self.conv1 = nn.Conv2d(c, channels, 1, groups=c)
 
         self.gated_layers = nn.ModuleList()
         for i in range(num_layers):
             self.gated_layers.append(
                 CMaskedConv2d(
-                    (channels, h, w), conditional_size,
-                    channels, self_connection=i > 0,
+                    (channels, h, w),
+                    conditional_size,
+                    channels, colors=c, self_connection=i > 0,
                     res_connection= i > 0,
                     gates=True,
                     hv_connection=True,
                     k=k, padding=padding)
             )
 
-        self.conv2 = nn.Conv2d(channels * 2, 256*c, 1)
+        self.conv2 = nn.Conv2d(channels, 256*c, 1, groups=c)
 
     def forward(self, x, cond):
 
@@ -91,10 +92,9 @@ class Gated(nn.Module):
         for layer in self.gated_layers:
             xh, xv = layer(xh, xv, cond)
 
-        x = torch.cat([xh, xv], dim=1)
-        x = self.conv2(x)
+        x = self.conv2(xv)
 
-        return x.view(b, 256, c, h, w)
+        return x.view(b, c, 256, h, w).transpose(1, 2)
 
 def go(arg):
 

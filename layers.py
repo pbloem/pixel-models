@@ -127,7 +127,7 @@ class CMaskedConv2d(nn.Module):
     Masked convolution, with location independent conditional.
 
     """
-    def __init__(self, input_size, conditional_size, channels, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3):
+    def __init__(self, input_size, conditional_size, channels, colors=3, self_connection=False, res_connection=True, hv_connection=True, gates=True, k=7, padding=3):
 
         super().__init__()
 
@@ -141,8 +141,8 @@ class CMaskedConv2d(nn.Module):
 
         self.vertical   = nn.Conv2d(channels,   channels*f, kernel_size=k, padding=padding, bias=False)
         self.horizontal = nn.Conv2d(channels,   channels*f, kernel_size=(1, k), padding=(0, padding), bias=False)
-        self.tohori     = nn.Conv2d(channels*f, channels*f, kernel_size=1, padding=0, bias=False)
-        self.tores      = nn.Conv2d(channels,   channels,   kernel_size=1, padding=0, bias=False)
+        self.tohori     = nn.Conv2d(channels*f, channels*f, kernel_size=1, padding=0, bias=False, groups=colors)
+        self.tores      = nn.Conv2d(channels,   channels,   kernel_size=1, padding=0, bias=False, groups=colors)
 
         self.register_buffer('vmask', self.vertical.weight.data.clone())
         self.register_buffer('hmask', self.horizontal.weight.data.clone())
@@ -154,7 +154,28 @@ class CMaskedConv2d(nn.Module):
         self.vmask[:, :, k // 2 :, :] = 0
 
         # zero the right half of the hmask
-        self.hmask[:, :, :, k // 2 + self_connection:] = 0
+        self.hmask[:, :, :, k // 2:] = 0
+
+        # Add connections to "previous" colors (G is allowed to see R, and B is allowed to see R and G)
+
+        m = k // 2  # index of the middle of the convolution
+        pc = channels // colors  # channels per color
+
+        # print(self_connection + 0, self_connection, m)
+
+        for c in range(0, colors):
+            f, t = c * pc, (c+1) * pc
+
+            if f > 0:
+                self.hmask[f:t, :f, 0, m] = 1
+                self.hmask[f+channels:t+channels, :f, 0, m] = 1
+
+            # Connections to "current" colors (but not "future colors", R is not allowed to see G and B)
+            if self_connection:
+                self.hmask[f:t, :f+pc, 0, m] = 1
+                self.hmask[f + channels:t + channels, :f+pc, 0, m] = 1
+
+        print(self.hmask[:, :, 0, m])
 
         fr = util.prod(conditional_size)
         to = util.prod(input_size)
@@ -211,8 +232,8 @@ class CMaskedConv2d(nn.Module):
 
         half = c // 2
 
-        top = x[:, half:]
-        bottom = x[:, :half]
+        top = x[:, :half]
+        bottom = x[:, half:]
 
         # apply gate and return
         return F.tanh(top + tan_bias) * F.sigmoid(bottom + sig_bias)
