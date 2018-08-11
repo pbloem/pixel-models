@@ -91,9 +91,9 @@ class MaskedConv2d(nn.Module):
                 self.hmask[f:t, :f, 0, m] = 1
                 self.hmask[f+channels:t+channels, :f, 0, m] = 1
 
-            if self_connection:
-                self.hmask[f:t, :f+pc, 0, m] = 1
-                self.hmask[f + channels:t + channels, :f+pc, 0, m] = 1
+            # if self_connection:
+            #     self.hmask[f:t, :f+pc, 0, m] = 1
+            #     self.hmask[f + channels:t + channels, :f+pc, 0, m] = 1
 
         print(self.hmask[:, :, 0, m])
 
