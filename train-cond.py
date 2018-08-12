@@ -153,7 +153,7 @@ def go(arg):
     testcls_seeds = util.readn(testloader, n=12, cls=True, maxval=CLS)
 
     testbatch = testbatch.unsqueeze(1).expand(12, 6, C, H, W).contiguous().view(72, 1, C, H, W).squeeze(1)
-    sample_init_seeds[:, :, :sh, :sw] = testbatch[:, :, :sh, :sw]
+    sample_init_seeds[:, :, :sh, :] = testbatch[:, :, :sh, :]
     testcls_seeds = testcls_seeds.unsqueeze(1).expand(12, 6, CLS).contiguous().view(72, 1, CLS).squeeze(1)
 
     # Get classes for the unseeded part
@@ -232,7 +232,7 @@ def go(arg):
 
         model.train(False)
         sample_zeros = draw_sample(sample_init_zeros, testcls_zeros, model, seedsize=(0, 0))
-        sample_seeds = draw_sample(sample_init_seeds, testcls_seeds, model, seedsize=(sh, sw))
+        sample_seeds = draw_sample(sample_init_seeds, testcls_seeds, model, seedsize=(sh, W))
         sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
