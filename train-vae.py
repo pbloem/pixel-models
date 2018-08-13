@@ -186,9 +186,6 @@ def go(arg):
 
             rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
 
-            print(rec_loss.size())
-            print(kl_loss.size())
-
             loss = (rec_loss + kl_loss).mean()
 
             instances_seen += input.size(0)
@@ -231,6 +228,9 @@ def go(arg):
             rec = pixcnn(input, out)
 
             rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
+
+            print(rec_loss.size())
+            print(kl_loss.size())
 
             loss = (rec_loss + kl_loss).mean()
 
