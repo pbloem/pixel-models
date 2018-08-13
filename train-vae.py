@@ -4,13 +4,12 @@ import torch
 import torchvision
 
 from torch.autograd import Variable
-from torchvision.transforms import CenterCrop, ToTensor, Compose, Lambda, Resize
+from torchvision.transforms import CenterCrop, ToTensor, Compose, Lambda, Resize, Grayscale, Pad
 from torchvision.datasets import coco
 from torchvision import utils
 
 from torch.nn.functional import binary_cross_entropy, relu, nll_loss, cross_entropy, softmax
 from torch.nn import Embedding, Conv2d, Sequential, BatchNorm2d, ReLU
-from torch import nn
 from torch.optim import Adam
 
 import nltk
@@ -23,33 +22,37 @@ import util, models
 
 from tensorboardX import SummaryWriter
 
-from layers import PlainMaskedConv2d, MaskedConv2d, CMaskedConv2d
+from layers import PlainMaskedConv2d, MaskedConv2d
 
 SEEDFRAC = 2
 
 """
 TODO:
+ - Conditional input.
  - Condition the colors properly.
+
 """
 
-def draw_sample(seeds, classes, model, seedsize=(0, 0)):
+def draw_sample(seeds, decoder, pixcnn, zs, seedsize=(0, 0)):
 
     b, c, h, w = seeds.size()
 
     sample = seeds.clone()
-
     if torch.cuda.is_available():
-        sample, classes = sample.cuda(), classes.cuda()
+        sample, zs = sample.cuda(), zs.cuda()
+    sample, zs = Variable(sample), Variable(zs)
 
-    sample, classes = Variable(sample), Variable(classes)
+    cond = decoder(zs)
 
     for i in tqdm.trange(h):
         for j in range(w):
+
             if i < seedsize[0] and j < seedsize[1]:
                 continue
 
             for channel in range(c):
-                result = model(sample, classes)
+
+                result = pixcnn(sample, cond)
                 probs = softmax(result[:, :, channel, i, j]).data
 
                 pixel_sample = torch.multinomial(probs, 1).float() / 255.
@@ -63,17 +66,18 @@ def go(arg):
 
     ## Load the data
     if arg.task == 'mnist':
+        transform = Compose([Pad(padding=2), ToTensor()])
+
         trainset = torchvision.datasets.MNIST(root=arg.data_dir, train=True,
-                                                download=True, transform=ToTensor())
+                                                download=True, transform=transform)
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=arg.batch_size,
                                                   shuffle=True, num_workers=2)
 
         testset = torchvision.datasets.MNIST(root=arg.data_dir, train=False,
-                                               download=True, transform=ToTensor())
+                                               download=True, transform=transform)
         testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
                                                  shuffle=False, num_workers=2)
-        C, H, W = 1, 28, 28
-        CLS = 10
+        C, H, W = 1, 32, 32
 
     elif arg.task == 'cifar10':
         trainset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=True,
@@ -86,77 +90,108 @@ def go(arg):
         testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
                                                  shuffle=False, num_workers=2)
         C, H, W = 3, 32, 32
-        CLS = 10
+
+    elif arg.task == 'cifar-gs':
+        transform = Compose([Grayscale(), ToTensor()])
+
+        trainset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=True,
+                                                download=True, transform=transform)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=arg.batch_size,
+                                                  shuffle=True, num_workers=2)
+
+        testset = torchvision.datasets.CIFAR10(root=arg.data_dir, train=False,
+                                               download=True, transform=transform)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
+                                                 shuffle=False, num_workers=2)
+        C, H, W = 1, 32, 32
     else:
         raise Exception('Task {} not recognized.'.format(arg.task))
 
     ## Set up the model
+    fm = arg.channels
+    krn = arg.kernel_size
+    pad = krn // 2
 
-    if arg.model == 'gated':
+    OUTCN = 64
 
-        model = models.Gated((C, H, W), (CLS,), arg.channels,
-                             num_layers=arg.num_layers, k=arg.kernel_size, padding=arg.kernel_size//2)
+    if arg.model == 'vae':
+
+        encoder = models.ImEncoder(in_size=(H, W), zsize=arg.zsize, depth=arg.vae_depth, colors=C)
+        decoder = models.ImDecoder(in_size=(H, W), zsize=arg.zsize, depth=arg.vae_depth, out_channels=OUTCN)
+        pixcnn  = models.LGated((C, H, W), OUTCN, arg.channels, num_layers=arg.num_layers, k=krn, padding=pad)
+
+        mods = [encoder, decoder, pixcnn]
 
     else:
         raise Exception('model "{}" not recognized'.format(arg.model))
 
-    print('Constructed network', model)
+    if torch.cuda.is_available():
+        for m in mods:
+            m.cuda()
+
+    print('Constructed network', encoder, decoder, pixcnn)
+
+    #
+    sample_zs = torch.randn(12, arg.zsize)
+    sample_zs = sample_zs.unsqueeze(1).expand(12, 6, -1).contiguous().view(72, 1, -1).squeeze(1)
 
     # A sample of 144 square images with 3 channels, of the chosen resolution
     # (144 so we can arrange them in a 12 by 12 grid)
     sample_init_zeros = torch.zeros(72, C, H, W)
     sample_init_seeds = torch.zeros(72, C, H, W)
 
-
     sh, sw = H//SEEDFRAC, W//SEEDFRAC
 
     # Init second half of sample with patches from test set, to seed the sampling
-    testbatch     = util.readn(testloader, n=12)
-    testcls_seeds = util.readn(testloader, n=12, cls=True, maxval=CLS)
-
+    testbatch = util.readn(testloader, n=12)
     testbatch = testbatch.unsqueeze(1).expand(12, 6, C, H, W).contiguous().view(72, 1, C, H, W).squeeze(1)
     sample_init_seeds[:, :, :sh, :] = testbatch[:, :, :sh, :]
-    testcls_seeds = testcls_seeds.unsqueeze(1).expand(12, 6, CLS).contiguous().view(72, 1, CLS).squeeze(1)
 
-    # Get classes for the unseeded part
-    testcls_zeros = util.readn(testloader, n=24, cls=True, maxval=CLS)[12:]
-    testcls_zeros = testcls_zeros.unsqueeze(1).expand(12, 6, CLS).contiguous().view(72, 1, CLS).squeeze(1)
-
-    optimizer = Adam(model.parameters(), lr=arg.lr)
-
-    if torch.cuda.is_available():
-        model.cuda()
+    params = []
+    for m in mods:
+        params.extend(m.parameters())
+    optimizer = Adam(params, lr=arg.lr)
 
     instances_seen = 0
     for epoch in range(arg.epochs):
 
         # Train
         err_tr = []
-        model.train(True)
 
-        for i, (input, classes) in enumerate(tqdm.tqdm(trainloader)):
+        for m in mods:
+            m.train(True)
+
+        for i, (input, _) in enumerate(tqdm.tqdm(trainloader)):
             if arg.limit is not None and i * arg.batch_size > arg.limit:
                 break
 
             # Prepare the input
             b, c, w, h = input.size()
-
-            classes = util.one_hot(classes, CLS)
-
             if torch.cuda.is_available():
-                input, classes = input.cuda(), classes.cuda()
+                input = input.cuda()
 
             target = (input.data * 255).long()
 
-            input, classes, target = Variable(input), Variable(classes), Variable(target)
+            input, target = Variable(input), Variable(target)
 
             # Forward pass
-            result = model(input, classes)
+            zs = encoder(input)
 
-            loss = cross_entropy(result, target)
+            kl_loss = util.kl_loss(*zs)
+            z = util.sample(*zs)
+
+            out = decoder(z)
+
+            rec = pixcnn(input, out)
+
+            rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
+
+            loss = (rec_loss + kl_loss).mean()
 
             instances_seen += input.size(0)
-            tbw.add_scalar('pixel-models/training-loss', loss.data.item(), instances_seen)
+            tbw.add_scalar('pixel-models/vae/training/kl-loss',  kl_loss.mean().data.item(), instances_seen)
+            tbw.add_scalar('pixel-models/vae/training/rec-loss', rec_loss.mean().data.item(), instances_seen)
+
             err_tr.append(loss.data.item())
 
             # Backward pass
@@ -169,22 +204,32 @@ def go(arg):
         #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
         err_te = []
-        model.train(False)
 
-        for i, (input, classes) in enumerate(tqdm.tqdm(testloader)):
+        for m in mods:
+            m.train(False)
+
+        for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
             if arg.limit is not None and i * arg.batch_size > arg.limit:
                 break
 
-            classes = util.one_hot(classes, CLS)
-
             if torch.cuda.is_available():
-                input, classes = input.cuda(), classes.cuda()
+                input = input.cuda()
 
             target = (input.data * 255).long()
-            input, classes, target = Variable(input), Variable(classes), Variable(target)
+            input, target = Variable(input), Variable(target)
 
-            result = model(input, classes)
-            loss = cross_entropy(result, target)
+            zs = encoder(input)
+
+            kl_loss = util.kl_loss(*zs)
+            z = util.sample(*zs)
+
+            out = decoder(z)
+
+            rec = pixcnn(input, out)
+
+            rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
+
+            loss = (rec_loss + kl_loss).mean()
 
             err_te.append(loss.data.item())
 
@@ -192,9 +237,11 @@ def go(arg):
         print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
             epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
-        model.train(False)
-        sample_zeros = draw_sample(sample_init_zeros, testcls_zeros, model, seedsize=(0, 0))
-        sample_seeds = draw_sample(sample_init_seeds, testcls_seeds, model, seedsize=(sh, W))
+        for m in mods:
+            m.train(False)
+
+        sample_zeros = draw_sample(sample_init_zeros, decoder, pixcnn, sample_zs, seedsize=(0, 0))
+        sample_seeds = draw_sample(sample_init_seeds, decoder, pixcnn, sample_zs, seedsize=(sh, W))
         sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
@@ -211,8 +258,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-m", "--model",
                         dest="model",
-                        help="Type of model to use: [gated].",
-                        default='gated', type=str)
+                        help="Type of model to use: [simple, gated].",
+                        default='vae', type=str)
 
     parser.add_argument("--no-res",
                         dest="no_res",
@@ -229,12 +276,6 @@ if __name__ == "__main__":
                         help="Turns off the connection between the horizontal and vertical stack in the gated layer",
                         action='store_true')
 
-
-    parser.add_argument("--batch-norm",
-                        dest="batch_norm",
-                        help="Turns on batch normalization after each layer",
-                        action='store_true')
-
     parser.add_argument("-e", "--epochs",
                         dest="epochs",
                         help="Number of epochs.",
@@ -245,19 +286,29 @@ if __name__ == "__main__":
                         help="Size of convolution kernel",
                         default=7, type=int)
 
-    parser.add_argument("-x", "--num_layers",
+    parser.add_argument("-x", "--num-layers",
                         dest="num_layers",
-                        help="Number of convolution layers",
-                        default=7, type=int)
+                        help="Number of pixelCNN layers",
+                        default=3, type=int)
+
+    parser.add_argument("-d", "--vae-depth",
+                        dest="vae_depth",
+                        help="Depth of the VAE in blocks (in addition to the 3 default blocks)",
+                        default=0, type=int)
 
     parser.add_argument("-c", "--channels",
                         dest="channels",
-                        help="Number of channels (aka featur maps) for the intermediate representations.",
-                        default=64, type=int)
+                        help="Number of channels (aka feature maps) for the intermediate representations. Should be divisible by the number of colors.",
+                        default=60, type=int)
 
     parser.add_argument("-b", "--batch-size",
                         dest="batch_size",
                         help="Size of the batches.",
+                        default=32, type=int)
+
+    parser.add_argument("-z", "--z-size",
+                        dest="zsize",
+                        help="Size of latent space.",
                         default=32, type=int)
 
     parser.add_argument("-L", "--latent-size",
