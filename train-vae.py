@@ -231,9 +231,6 @@ def go(arg):
 
             rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
 
-            print(rec_loss.size())
-            print(kl_loss.size())
-
             loss = (rec_loss + kl_loss).mean()
 
             err_te.append(loss.data.item())
