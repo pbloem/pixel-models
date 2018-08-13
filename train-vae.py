@@ -212,6 +212,8 @@ def go(arg):
             if arg.limit is not None and i * arg.batch_size > arg.limit:
                 break
 
+            b, c, w, h = input.size()
+
             if torch.cuda.is_available():
                 input = input.cuda()
 
