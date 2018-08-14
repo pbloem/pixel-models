@@ -81,7 +81,7 @@ class LGated(nn.Module):
         return x.view(b, c, 256, h, w).transpose(1, 2)
 
 
-class LGated(nn.Module):
+class CGated(nn.Module):
 
     def __init__(self, input_size, cond_size, channels, num_layers, k=7, padding=3):
         super().__init__()
