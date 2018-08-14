@@ -116,7 +116,7 @@ class CGated(nn.Module):
         for layer in self.gated_layers:
             xv, xh = layer(xv, xh, cond)
 
-        x = self.conv2(xv)
+        x = self.conv2(xh)
 
         return x.view(b, c, 256, h, w).transpose(1, 2)
 
