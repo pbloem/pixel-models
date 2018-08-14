@@ -37,7 +37,7 @@ class Gated(nn.Module):
         for layer in self.gated_layers:
             xh, xv = layer(xh, xv, cond)
 
-        x = self.conv2(xv)
+        x = self.conv2(xh)
 
         return x.view(b, c, 256, h, w).transpose(1, 2)
 
@@ -74,12 +74,51 @@ class LGated(nn.Module):
         xh, xv = x, x
 
         for layer in self.gated_layers:
-            xh, xv = layer(xh, xv, cond)
+            xv, xh = layer(xv, xh, cond)
+
+        x = self.conv2(xh)
+
+        return x.view(b, c, 256, h, w).transpose(1, 2)
+
+
+class LGated(nn.Module):
+
+    def __init__(self, input_size, cond_size, channels, num_layers, k=7, padding=3):
+        super().__init__()
+
+        c, h, w = input_size
+
+        self.conv1 = nn.Conv2d(c, channels, 1, groups=c)
+
+        self.gated_layers = nn.ModuleList()
+        for i in range(num_layers):
+            self.gated_layers.append(
+                CMaskedConv2d(
+                    (channels, h, w),
+                    cond_size,
+                    channels, colors=c, self_connection=i > 0,
+                    res_connection= i > 0,
+                    gates=True,
+                    hv_connection=True,
+                    k=k, padding=padding)
+            )
+
+        self.conv2 = nn.Conv2d(channels, 256*c, 1, groups=c)
+
+    def forward(self, x, cond):
+
+        b, c, h, w = x.size()
+
+        x = self.conv1(x)
+
+        xh, xv = x, x
+
+        for layer in self.gated_layers:
+            xv, xh = layer(xv, xh, cond)
 
         x = self.conv2(xv)
 
         return x.view(b, c, 256, h, w).transpose(1, 2)
-
 
 class ImEncoder(nn.Module):
 

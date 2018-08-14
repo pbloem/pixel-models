@@ -114,11 +114,19 @@ def go(arg):
 
     OUTCN = 64
 
-    if arg.model == 'vae':
+    if arg.model == 'vae-up':
 
         encoder = models.ImEncoder(in_size=(H, W), zsize=arg.zsize, depth=arg.vae_depth, colors=C)
         decoder = models.ImDecoder(in_size=(H, W), zsize=arg.zsize, depth=arg.vae_depth, out_channels=OUTCN)
         pixcnn  = models.LGated((C, H, W), OUTCN, arg.channels, num_layers=arg.num_layers, k=krn, padding=pad)
+
+        mods = [encoder, decoder, pixcnn]
+
+    if arg.model == 'vae-straight':
+
+        encoder = models.ImEncoder(in_size=(H, W), zsize=arg.zsize, depth=arg.vae_depth, colors=C)
+        decoder = util.Lambda(lambda x : x) # identity
+        pixcnn  = models.CGated((C, H, W), (arg.zsize,), arg.channels, num_layers=arg.num_layers, k=krn, padding=pad)
 
         mods = [encoder, decoder, pixcnn]
 
