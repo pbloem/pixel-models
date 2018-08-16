@@ -7,6 +7,15 @@ PixelVAE (Gulrajani et al. 2016) models.
 Make sure that the value of the "current pixel" (at the center of the convolution), is not transmitted up the network:
  * Disable self-connections in the first layer
  * For the gated layer, disable the residual connection in the first layer.
+ 
+## Tasks (i.e. datasets)
+
+Most datasets are downloaded automatically. For the imagenet64 dataset, download the following torrent: http://academictorrents.com/details/96816a530ee002254d29bf7a61c0c158d3dedc3b
+Place the train and test data in some directory (say ```~/data/imagenet/```), containing subdirectories ```train``` and ```valid```. These should each 
+contain an additional subdirectory (with any name), which contains the images.
+ 
+Then call the training script as follows:
+```python train-cnn.py -t imagenet64 -D ~/data/imagenet/```
 
 ## Sources
 
