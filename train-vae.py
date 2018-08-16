@@ -106,15 +106,19 @@ def go(arg):
         C, H, W = 1, 32, 32
 
     elif arg.task == 'imagenet64':
+
         transform = Compose([ToTensor()])
 
-        trainset = torchvision.datasets.ImageFolder(root=arg.data_dir, transform=transform)
+        trainset = torchvision.datasets.ImageFolder(root=arg.data_dir + os.sep + 'train',
+                                                    transform=transform)
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=arg.batch_size,
                                                   shuffle=True, num_workers=2)
 
-        testset = torchvision.datasets.ImageFolder(root=arg.data_dir, transform=transform)
+        testset = torchvision.datasets.ImageFolder(root=arg.data_dir + os.sep + 'valid',
+                                                   transform=transform)
         testloader = torch.utils.data.DataLoader(testset, batch_size=arg.batch_size,
                                                  shuffle=False, num_workers=2)
+
         C, H, W = 3, 64, 64
 
     else:
