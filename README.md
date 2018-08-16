@@ -12,7 +12,7 @@ Make sure that the value of the "current pixel" (at the center of the convolutio
 
 Most datasets are downloaded automatically. For the imagenet64 dataset, download the following torrent: 
 [Academic torrents](http://academictorrents.com/details/96816a530ee002254d29bf7a61c0c158d3dedc3b)
- [magnet link](magnet:?xt=urn:btih:96816a530ee002254d29bf7a61c0c158d3dedc3b&tr=http%3A%2F%2Facademictorrents.com%2Fannounce.php&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80%2Fannounce) 
+ [magnet link](https://goo.gl/nr7NFi) 
 Place the train and test data in some directory (say ```~/data/imagenet/```), containing subdirectories ```train``` and ```valid```. These should each 
 contain an additional subdirectory (with any name), which contains the images.
  
