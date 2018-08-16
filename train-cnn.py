@@ -209,13 +209,15 @@ def go(arg):
             loss = cross_entropy(result, target)
 
             instances_seen += input.size(0)
-            tbw.add_scalar('pixel-models/training-loss', loss.data.item(), instances_seen)
-            err_tr.append(loss.data.item())
+            tbw.add_scalar('pixel-models/training-loss', float(loss.data.item()), instances_seen)
+            err_tr.append(float(loss.data.item()))
 
             # Backward pass
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+        del loss
 
         # Evaluate
         # - we evaluate on the test set, since this is only a simpe reproduction experiment
