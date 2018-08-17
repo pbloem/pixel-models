@@ -217,7 +217,7 @@ def go(arg):
             loss.backward()
             optimizer.step()
 
-        del loss
+        del loss, result, input, target
 
         # Evaluate
         # - we evaluate on the test set, since this is only a simpe reproduction experiment
