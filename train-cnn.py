@@ -217,7 +217,7 @@ def go(arg):
             loss.backward()
             optimizer.step()
 
-        del loss, result, input, target
+        del loss, result
 
         # Evaluate
         # - we evaluate on the test set, since this is only a simpe reproduction experiment
@@ -240,6 +240,8 @@ def go(arg):
             loss = cross_entropy(result, target)
 
             err_te.append(loss.data.item())
+
+        del loss, result
 
         tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
         print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
