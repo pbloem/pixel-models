@@ -33,7 +33,7 @@ TODO:
 
 """
 
-def draw_sample(seeds, model, seedsize=(0, 0)):
+def draw_sample(seeds, model, seedsize=(0, 0), batch_size=32):
 
     b, c, h, w = seeds.size()
 
@@ -48,8 +48,10 @@ def draw_sample(seeds, model, seedsize=(0, 0)):
                 continue
 
             for channel in range(c):
-                result = model(sample)
-                probs = softmax(result[:, :, channel, i, j]).data
+
+                result = util.batched(sample, model, batch_size)
+
+                probs = softmax(result[:, :, channel, i, j])
 
                 pixel_sample = torch.multinomial(probs, 1).float() / 255.
                 sample[:, channel, i, j] = pixel_sample.squeeze()
@@ -248,8 +250,8 @@ def go(arg):
             epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
         model.train(False)
-        sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0))
-        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, W))
+        sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0), batch_size=arg.batch_size)
+        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, W), batch_size=arg.batch_size)
         sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
