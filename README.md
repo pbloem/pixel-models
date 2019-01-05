@@ -1,7 +1,7 @@
 # pixel-models
 Pytorch implementations of the PixelCNN (va Oord et al. 2016) and PixelVAE (Gulrajani et al. 2016) models.
 
-**STATUS**: This project is not finished. Most models are implemented, but they have not been fully tested, to show that they reproduce the performane of the published versions. If you are doing something important, please don't use this code as is.
+**STATUS**: This project is not finished. Most models are implemented, but they have not been fully tested, to show that they reproduce the performance of the published versions. If you are doing something important, please don't use this code as is.
 
 ## Usage notes
 
