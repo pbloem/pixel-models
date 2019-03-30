@@ -29,26 +29,68 @@ half, they are are provided with half an image from the dataset to complete.
 
 ### Simple pixel CNN (no gates or RES connections)
 
+A very simple network (5 layers, 5 by 5 kernel, 30 channels):
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 5 -k 5 -c 30 -l 0.001 -m simple -t mnist
 
-epoch=15; training loss: 0.768; test loss: 0.763
+epoch=14; training loss: 0.770; test loss: 0.766
 ```
 After 15 epochs:
 
 ![](./images/simple5by5.png)
 
-
+With some 12 layers and 63 channels:
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 9 -k 5 -c 63 -l 0.001 -m simple -t mnist
+
+epoch=14; training loss: 0.734; test loss: 0.732
 ```
-After 15 epochs
+After 15 epochs:
+
+![](./images/simple9by5.png)
 
 ### Gated pixelCNN
 
+```
+python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 5 -k 5 -c 30 -l 0.001 -m gated -t mnist
+
+epoch=14; training loss: 0.765; test loss: 0.737
+```
+After 15 epochs:
+
+![](./images/gated5by5.png)
+
+```
+python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 12 -k 5 -c 60 -l 0.001 -m gated -t mnist
+
+```
+
+
+#### On CIFAR10 
+
+```
+python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 12 -k 5 -c 30 -l 0.001 -m gated -t cifar10
+
+```
+After 15 epochs:
+
+![]()
+
+
+
+
+
 ### Conditional gated pixelCNN
 
-In the conditional variant, we provide the model the image class.
+In the conditional variant, we provide the model the with image class as a conditional input.
+
+#### MNIST
+
+#### CIFAR10
+
+### PixelVAE
+
+
 
 ## Sources
 

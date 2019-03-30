@@ -26,13 +26,6 @@ from layers import PlainMaskedConv2d, MaskedConv2d
 
 SEEDFRAC = 2
 
-"""
-TODO:
- - Conditional input.
- - Condition the colors properly.
-
-"""
-
 def draw_sample(seeds, decoder, pixcnn, zs, seedsize=(0, 0)):
 
     b, c, h, w = seeds.size()
