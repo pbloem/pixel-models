@@ -22,6 +22,34 @@ contain an additional subdirectory (with any name), which contains the images.
 Then call the training script as follows:
 ```python train-cnn.py -t imagenet64 -D ~/data/imagenet/```
 
+## Results
+
+All results show a grid of 12x12 generated images. In the top half, the images are generated from scratch. In the bottom
+half, they are are provided with half an image from the dataset to complete.
+
+### Simple pixel CNN (no gates or RES connections)
+
+```
+python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 5 -k 5 -c 30 -l 0.001 -m simple -t mnist
+
+epoch=15; training loss: 0.768; test loss: 0.763
+```
+After 15 epochs:
+
+![](./images/simple5by5.png)
+
+
+```
+python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 9 -k 5 -c 63 -l 0.001 -m simple -t mnist
+```
+After 15 epochs
+
+### Gated pixelCNN
+
+### Conditional gated pixelCNN
+
+In the conditional variant, we provide the model the image class.
+
 ## Sources
 
 Some of the code in this repository was adapted from:    

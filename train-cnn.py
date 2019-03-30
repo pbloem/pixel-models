@@ -147,7 +147,7 @@ def go(arg):
         ]
 
         for i in range(arg.num_layers):
-            modules.append(MaskedConv2d(fm, colors=3, self_connection=i > 0,
+            modules.append(MaskedConv2d(fm, colors=C, self_connection=i > 0,
                                          res_connection=(not arg.no_res) if i > 0 else False,
                                          gates=not arg.no_gates,
                                          hv_connection=not arg.no_hv,
@@ -289,7 +289,7 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--epochs",
                         dest="epochs",
                         help="Number of epochs.",
-                        default=150, type=int)
+                        default=15, type=int)
 
     parser.add_argument("-k", "--kernel_size",
                         dest="kernel_size",
@@ -310,16 +310,6 @@ if __name__ == "__main__":
                         dest="batch_size",
                         help="Size of the batches.",
                         default=32, type=int)
-
-    parser.add_argument("-L", "--latent-size",
-                        dest="latent_size",
-                        help="Size of the latent representations.",
-                        default=32, type=int)
-
-    parser.add_argument("-E", "--embedding-size",
-                        dest="embedding_size",
-                        help="Size of the embeddings.",
-                        default=300, type=int)
 
     parser.add_argument("--limit",
                         dest="limit",
