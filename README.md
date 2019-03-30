@@ -1,7 +1,9 @@
 # pixel-models
 Pytorch implementations of the PixelCNN (va Oord et al. 2016) and PixelVAE (Gulrajani et al. 2016) models.
 
-**STATUS**: This project is not finished. Most models are implemented, but they have not been fully tested, to show that they reproduce the performance of the published versions. If you are doing something important, please don't use this code as is.
+**STATUS**: This project is not finished. Most models are implemented, but they have not been fully tested, 
+to show that they reproduce the performance of the published versions. If you are doing something important,
+please don't use this code as is.
 
 ## Usage notes
 
@@ -11,7 +13,7 @@ Make sure that the value of the "current pixel" (at the center of the convolutio
  
 ## Tasks (i.e. datasets)
 
-Most datasets are downloaded automatically. For the imagenet64 dataset, download the following torrent: 
+```MNIST``` and ```CIFAR``` datasets are downloaded automatically. For the ```imagenet64``` dataset, download the following torrent: 
 [Academic torrents](http://academictorrents.com/details/96816a530ee002254d29bf7a61c0c158d3dedc3b)
  [magnet link](https://goo.gl/nr7NFi) 
 Place the train and test data in some directory (say ```~/data/imagenet/```), containing subdirectories ```train``` and ```valid```. These should each 

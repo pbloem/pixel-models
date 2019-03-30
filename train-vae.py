@@ -132,6 +132,10 @@ def go(arg):
     OUTCN = 64
 
     if arg.model == 'vae-up':
+        """
+        Upsampling model. VAE with an encoder and a decoder, generates a conditional vector at every pixel,
+        which is then passed to the picelCNN layers.
+        """
 
         encoder = models.ImEncoder(in_size=(H, W), zsize=arg.zsize, depth=arg.vae_depth, colors=C)
         decoder = models.ImDecoder(in_size=(H, W), zsize=arg.zsize, depth=arg.vae_depth, out_channels=OUTCN)
@@ -139,7 +143,11 @@ def go(arg):
 
         mods = [encoder, decoder, pixcnn]
 
-    if arg.model == 'vae-straight':
+    elif arg.model == 'vae-straight':
+        """
+        Model that generates a single latent code for the whole image, and passes it straight to the autoregressive 
+        decoder: no upsampling layers or deconvolutions.
+        """
 
         encoder = models.ImEncoder(in_size=(H, W), zsize=arg.zsize, depth=arg.vae_depth, colors=C)
         decoder = util.Lambda(lambda x : x) # identity
@@ -225,7 +233,7 @@ def go(arg):
             optimizer.step()
 
         # Evaluate
-        # - we evaluate on the test set, since this is only a simpe reproduction experiment
+        # - we evaluate on the test set, since this is only a simple reproduction experiment
         #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
         err_te = []
