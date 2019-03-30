@@ -27,7 +27,7 @@ Then call the training script as follows:
 All results show a grid of 12x12 generated images. In the top half, the images are generated from scratch. In the bottom
 half, they are are provided with half an image from the dataset to complete.
 
-### Simple pixel CNN (no gates or RES connections)
+### Simple pixel CNN (no gates or residual connections)
 
 A very simple network (5 layers, 5 by 5 kernel, 30 channels):
 ```
@@ -49,7 +49,7 @@ After 15 epochs:
 
 ![](./images/simple9by5.png)
 
-### Gated pixelCNN
+### Gated pixelCNN (Oord et al, gates and residuals)
 
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 5 -k 5 -c 30 -l 0.001 -m gated -t mnist
@@ -75,10 +75,6 @@ python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 12 -k 5 -c 3
 After 15 epochs:
 
 ![]()
-
-
-
-
 
 ### Conditional gated pixelCNN
 
