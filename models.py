@@ -36,9 +36,9 @@ class Gated(nn.Module):
         xh, xv = x, x
 
         for layer in self.gated_layers:
-            xh, xv = layer((xh, xv))
+            xv, xh = layer((xv, xh))
 
-        x = self.conv2(xv)
+        x = self.conv2(xh)
 
         return x.view(b, c, 256, h, w).transpose(1, 2)
 
@@ -118,12 +118,12 @@ class CGated(nn.Module):
 
         x = self.conv1(x)
 
-        xh, xv = x, x
+        xv, xh = x, x
 
         for layer in self.gated_layers:
             xv, xh = layer(xv, xh, cond)
 
-        x = self.conv2(xv)
+        x = self.conv2(xh)
 
         return x.view(b, c, 256, h, w).transpose(1, 2)
 
