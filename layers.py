@@ -198,7 +198,7 @@ class CMaskedConv2d(nn.Module):
             hx = hx + self.tohori(vx)
 
         if self.gates:
-            vx = self.gate(vx, h,  (self.vvf, self.vvg))
+            vx = self.gate(vx, h, (self.vvf, self.vvg))
             hx = self.gate(hx, h, (self.vhf, self.vhg))
 
         if self.res_connection:

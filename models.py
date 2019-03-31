@@ -3,6 +3,10 @@ from torch import nn
 from layers import *
 
 class Gated(nn.Module):
+    """
+    Model combining several gated pixelCNN layers with a conditional input (usually the class)
+
+    """
 
     def __init__(self, input_size, conditional_size, channels, num_layers, k=7, padding=3):
         super().__init__()
