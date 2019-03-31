@@ -12,7 +12,7 @@ from torch.nn.functional import binary_cross_entropy, relu, nll_loss, cross_entr
 from torch.nn import Embedding, Conv2d, Sequential, BatchNorm2d, ReLU
 from torch.optim import Adam
 
-import nltk
+# import nltk
 
 from argparse import ArgumentParser
 
@@ -216,7 +216,7 @@ def go(arg):
         del loss, result
 
         # Evaluate
-        # - we evaluate on the test set, since this is only a simpe reproduction experiment
+        # - we evaluate on the test set, since this is only a simple reproduction experiment
         #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
         err_te = []
