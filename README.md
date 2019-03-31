@@ -1,15 +1,16 @@
 # pixel-models
 Pytorch implementations of the PixelCNN (va Oord et al. 2016) and PixelVAE (Gulrajani et al. 2016) models.
 
-**STATUS**: This project is not finished. Most models are implemented, but they have not been fully tested, 
+## Status
+
+**This project is not finished.** Most models are implemented, but they have not been fully tested, 
 to show that they reproduce the performance of the published versions. If you are doing something important,
 please don't use this code as is.
 
-## Usage notes
-
-Make sure that the value of the "current pixel" (at the center of the convolution), is not transmitted up the network:
- * Disable self-connections in the first layer
- * For the gated layer, disable the residual connection in the first layer.
+Specifically:
+* The simple and gated models (without conditionals) seem to work. However, the current test set loss is considerably better than the state of the art on CIFAR10. This is most likely a detail in the computation of the loss. If you use this for anything important, make sure to implement your own evaluation.
+* The conditional layers don't work yet. Most likely a simple bug. Check back later.
+* The VAE is also a work in progress.
  
 ## Tasks (i.e. datasets)
 
@@ -91,7 +92,11 @@ In the conditional variant, we provide the model the with image class as a condi
 
 ### PixelVAE
 
+## Usage notes
 
+Make sure that the value of the "current pixel" (at the center of the convolution), is not transmitted up the network:
+ * Disable self-connections in the first layer
+ * For the gated layer, disable the residual connection in the first layer.
 
 ## Sources
 
