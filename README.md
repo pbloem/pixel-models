@@ -61,9 +61,13 @@ After 15 epochs:
 ![](./images/gated5by5.png)
 
 ```
-python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 12 -k 5 -c 60 -l 0.001 -m gated -t mnist
+python -u /home/pbloem/git/pixel-models/train-cnn.py -e 50 -b 64 -x 9 -k 5 -c 63 -l 0.0001 -m gated -t mnist
 
+epoch=49; training loss: 0.696; test loss: 0.687
 ```
+After _50_ epochs:
+
+![](./images/gated9by5at50.png)
 
 
 #### On CIFAR10 
@@ -71,10 +75,11 @@ python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 12 -k 5 -c 6
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 12 -k 5 -c 30 -l 0.001 -m gated -t cifar10
 
+epoch=14; training loss: 2.643; test loss: 2.629
 ```
 After 15 epochs:
 
-![]()
+![](./images/cifar12by5.png)
 
 ### Conditional gated pixelCNN
 
