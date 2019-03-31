@@ -89,7 +89,7 @@ def go(arg):
 
     if arg.model == 'gated':
 
-        model = models.Gated((C, H, W), (CLS,), arg.channels,
+        model = models.CGated((C, H, W), (CLS,), arg.channels,
                              num_layers=arg.num_layers, k=arg.kernel_size, padding=arg.kernel_size//2)
 
     else:

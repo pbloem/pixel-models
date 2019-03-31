@@ -4,11 +4,10 @@ from layers import *
 
 class Gated(nn.Module):
     """
-    Model combining several gated pixelCNN layers with a conditional input (usually the class)
-
+    Model combining several gated pixelCNN layers
     """
 
-    def __init__(self, input_size, conditional_size, channels, num_layers, k=7, padding=3):
+    def __init__(self, input_size, channels, num_layers, k=7, padding=3):
         super().__init__()
 
         c, h, w = input_size
@@ -18,9 +17,7 @@ class Gated(nn.Module):
         self.gated_layers = nn.ModuleList()
         for i in range(num_layers):
             self.gated_layers.append(
-                CMaskedConv2d(
-                    (channels, h, w),
-                    conditional_size,
+                MaskedConv2d(
                     channels, colors=c, self_connection=i > 0,
                     res_connection= i > 0,
                     gates=True,
@@ -30,7 +27,7 @@ class Gated(nn.Module):
 
         self.conv2 = nn.Conv2d(channels, 256*c, 1, groups=c)
 
-    def forward(self, x, cond):
+    def forward(self, x):
 
         b, c, h, w = x.size()
 
@@ -39,13 +36,16 @@ class Gated(nn.Module):
         xh, xv = x, x
 
         for layer in self.gated_layers:
-            xh, xv = layer(xh, xv, cond)
+            xh, xv = layer((xh, xv))
 
-        x = self.conv2(xh)
+        x = self.conv2(xv)
 
         return x.view(b, c, 256, h, w).transpose(1, 2)
 
 class LGated(nn.Module):
+    """
+    Gated model with location specific conditional
+    """
 
     def __init__(self, input_size, conditional_channels, channels, num_layers, k=7, padding=3):
         super().__init__()
@@ -80,12 +80,15 @@ class LGated(nn.Module):
         for layer in self.gated_layers:
             xv, xh = layer(xv, xh, cond)
 
-        x = self.conv2(xh)
+        x = self.conv2(xv)
 
         return x.view(b, c, 256, h, w).transpose(1, 2)
 
 
 class CGated(nn.Module):
+    """
+    Gated model with location-independent conditional
+    """
 
     def __init__(self, input_size, cond_size, channels, num_layers, k=7, padding=3):
         super().__init__()
@@ -120,13 +123,12 @@ class CGated(nn.Module):
         for layer in self.gated_layers:
             xv, xh = layer(xv, xh, cond)
 
-        x = self.conv2(xh)
+        x = self.conv2(xv)
 
         return x.view(b, c, 256, h, w).transpose(1, 2)
 
+
 class ImEncoder(nn.Module):
-
-
     """
     Encoder for a VAE
     """

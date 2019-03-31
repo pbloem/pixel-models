@@ -18,7 +18,7 @@ from argparse import ArgumentParser
 
 from collections import defaultdict, Counter, OrderedDict
 
-import util
+import util, models
 
 from tensorboardX import SummaryWriter
 
@@ -135,26 +135,9 @@ def go(arg):
 
     elif arg.model == 'gated':
 
-        modules = [
-            Conv2d(C, fm, 1, groups=C),  # the groups allow us to block out certain colors in the first layer
-            util.Lambda(lambda x: (x, x))
-        ]
+        model = models.Gated((C, H, W), arg.channels,
+                             num_layers=arg.num_layers, k=arg.kernel_size, padding=arg.kernel_size//2)
 
-        for i in range(arg.num_layers):
-            modules.append(MaskedConv2d(fm, colors=C, self_connection=i > 0,
-                                         res_connection=(not arg.no_res) if i > 0 else False,
-                                         gates=not arg.no_gates,
-                                         hv_connection=not arg.no_hv,
-                                         k=krn, padding=pad))
-
-        modules.extend([
-            util.Lambda(lambda xs: xs[1]),
-            Conv2d(fm, 256*C, 1, groups=C),
-            util.Reshape((C, 256, W, H)),
-            util.Lambda(lambda x: x.transpose(1, 2)) # index for batched tensor
-        ])
-
-        model = Sequential(*modules)
 
     else:
         raise Exception('model "{}" not recognized'.format(arg.model))
