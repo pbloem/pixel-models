@@ -13,7 +13,7 @@ from torch.nn import Embedding, Conv2d, Sequential, BatchNorm2d, ReLU
 from torch import nn
 from torch.optim import Adam
 
-import nltk
+# import nltk
 
 from argparse import ArgumentParser
 
@@ -89,7 +89,7 @@ def go(arg):
 
     if arg.model == 'gated':
 
-        model = models.Gated((C, H, W), (CLS,), arg.channels,
+        model = models.CGated((C, H, W), (CLS,), arg.channels,
                              num_layers=arg.num_layers, k=arg.kernel_size, padding=arg.kernel_size//2)
 
     else:
@@ -254,16 +254,6 @@ if __name__ == "__main__":
                         dest="batch_size",
                         help="Size of the batches.",
                         default=32, type=int)
-
-    parser.add_argument("-L", "--latent-size",
-                        dest="latent_size",
-                        help="Size of the latent representations.",
-                        default=32, type=int)
-
-    parser.add_argument("-E", "--embedding-size",
-                        dest="embedding_size",
-                        help="Size of the embeddings.",
-                        default=300, type=int)
 
     parser.add_argument("--limit",
                         dest="limit",

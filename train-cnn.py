@@ -12,13 +12,13 @@ from torch.nn.functional import binary_cross_entropy, relu, nll_loss, cross_entr
 from torch.nn import Embedding, Conv2d, Sequential, BatchNorm2d, ReLU
 from torch.optim import Adam
 
-import nltk
+# import nltk
 
 from argparse import ArgumentParser
 
 from collections import defaultdict, Counter, OrderedDict
 
-import util
+import util, models
 
 from tensorboardX import SummaryWriter
 
@@ -133,7 +133,7 @@ def go(arg):
 
         model = Sequential(*modules)
 
-    elif arg.model == 'gated':
+    elif arg.model == 'gated-old':
 
         modules = [
             Conv2d(C, fm, 1, groups=C),  # the groups allow us to block out certain colors in the first layer
@@ -155,6 +155,12 @@ def go(arg):
         ])
 
         model = Sequential(*modules)
+
+    elif arg.model == 'gated':
+
+        model = models.Gated((C, H, W), arg.channels,
+                             num_layers=arg.num_layers, k=arg.kernel_size, padding=arg.kernel_size//2)
+
 
     else:
         raise Exception('model "{}" not recognized'.format(arg.model))
@@ -216,7 +222,7 @@ def go(arg):
         del loss, result
 
         # Evaluate
-        # - we evaluate on the test set, since this is only a simpe reproduction experiment
+        # - we evaluate on the test set, since this is only a simple reproduction experiment
         #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
         err_te = []
