@@ -69,6 +69,35 @@ def sample(zmean, zlsig, eps=None):
 
     return zmean + eps * (zlsig * 0.5).exp()
 
+def kl_loss_image(z):
+
+    b, c, h, w = z.size()
+
+    mean = z[:, :c//2, :, :].view(b, -1)
+    sig = z[:, c//2:, :, :].view(b, -1)
+
+    kl = 0.5 * torch.sum(sig.exp() - sig + mean.pow(2) - 1, dim=1)
+
+    assert kl.size() == (b,)
+
+    return kl
+
+def sample_image(z, eps=None):
+
+    b, c, h, w = z.size()
+
+    mean = z[:, :c//2, :, :].view(b, -1)
+    sig = z[:, c//2:, :, :].view(b, -1)
+
+    if eps is None:
+        eps = torch.randn(b, c//2, h, w).view(b, -1)
+        if torch.cuda.is_available():
+            eps = eps.cuda()
+        eps = Variable(eps)
+
+    sample = mean + eps * (sig * 0.5).exp()
+
+    return sample.view(b, c//2, h, w)
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
