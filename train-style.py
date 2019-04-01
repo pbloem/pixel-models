@@ -340,16 +340,16 @@ def go(arg):
         # sample 6x12 images
         b = 6 * 12
 
-        z = util.sample(torch.zeros(b, zs, device=DV), torch.ones(b, zs, device=DV))
-        n0 = util.sample_image(standard(b, C, H, W))
-        n1 = util.sample_image(standard(b, channels[0], H//2, W//2))
-        n2 = util.sample_image(standard(b, channels[1], H//4, W//4))
-        n3 = util.sample_image(standard(b, channels[2], H//8, W//8))
+        zrand = util.sample(torch.zeros(b, zs, device=DV), torch.ones(b, zs, device=DV))
+        n0rand = util.sample_image(standard(b, C, H, W))
+        n1rand = util.sample_image(standard(b, channels[0], H//2, W//2))
+        n2rand = util.sample_image(standard(b, channels[1], H//4, W//4))
+        n3rand = util.sample_image(standard(b, channels[2], H//8, W//8))
 
         if torch.cuda.is_available():
-            z, n0, n1, n2, n3 = z.cuda(), n0.cuda(), n1.cuda(), n2.cuda(), n3.cuda()
+            zrand, n0rand, n1rand, n2rand, n3rand = z.cuda(), n0rand.cuda(), n1rand.cuda(), n2rand.cuda(), n3rand.cuda()
 
-        sample = decoder(z, n0, n1, n2, n3).clamp(0, 1)[:, :C, :, :]
+        sample = decoder(zrand, n0rand, n1rand, n2rand, n3rand).clamp(0, 1)[:, :C, :, :]
 
         # reconstruct 6x12 images from the testset
         input = util.readn(testloader, n=6*12)
@@ -370,9 +370,12 @@ def go(arg):
         # -- decoding
         xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample).clamp(0, 1)[:, :C, :, :]
 
-        images = torch.cat([sample, input, xout], dim=0)
+        # -- mix the latent vector with random noise
+        mixout = decoder(zsample, n0rand, n1rand, n2rand, n3rand).clamp(0, 1)[:, :C, :, :]
 
-        utils.save_image(images, 'images_{:02d}.png'.format(epoch), nrow=18, padding=2)
+        images = torch.cat([sample, input, xout, mixout], dim=0)
+
+        utils.save_image(images, 'images_{:02d}.png'.format(epoch), nrow=24, padding=2)
 
 if __name__ == "__main__":
 
