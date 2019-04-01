@@ -29,12 +29,17 @@ from tensorboardX import SummaryWriter
 from layers import PlainMaskedConv2d, MaskedConv2d
 
 SEEDFRAC = 2
+DV = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def standard(b, c, h, w):
     mean = torch.zeros(b, c, h, w)
     sig  = torch.ones(b, c, h, w)
 
-    return torch.cat([mean, sig], dim=1)
+    res = torch.cat([mean, sig], dim=1)
+
+    if torch.cuda.is_available():
+        res = res.cuda()
+    return res
 
 class StyleEncoder(nn.Module):
 
@@ -334,7 +339,9 @@ def go(arg):
 
         # sample 6x12 images
         b = 6 * 12
-        z  = util.sample(torch.zeros(b, zs), torch.ones(b, zs))
+
+
+        z = util.sample(torch.zeros(b, zs, device=DV), torch.ones(b, zs, device=DV))
         n0 = util.sample_image(standard(b, C, H, W))
         n1 = util.sample_image(standard(b, channels[0], H//2, W//2))
         n2 = util.sample_image(standard(b, channels[1], H//4, W//4))
