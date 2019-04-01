@@ -373,7 +373,12 @@ def go(arg):
         # -- mix the latent vector with random noise
         mixout = decoder(zsample, n0rand, n1rand, n2rand, n3rand).clamp(0, 1)[:, :C, :, :]
 
-        images = torch.cat([sample, input, xout, mixout], dim=0)
+
+        # -- mix the latent vector with random noise
+        mixout2 = decoder(zrand, n0sample, n1sample, n2sample, n3sample).clamp(0, 1)[:, :C, :, :]
+
+
+        images = torch.cat([sample, input, xout, mixout, mixout2], dim=0)
 
         utils.save_image(images, 'images_{:02d}.png'.format(epoch), nrow=24, padding=2)
 
