@@ -347,7 +347,7 @@ def go(arg):
         n3rand = util.sample_image(standard(b, channels[2], H//8, W//8))
 
         if torch.cuda.is_available():
-            zrand, n0rand, n1rand, n2rand, n3rand = z.cuda(), n0rand.cuda(), n1rand.cuda(), n2rand.cuda(), n3rand.cuda()
+            zrand, n0rand, n1rand, n2rand, n3rand = zrand.cuda(), n0rand.cuda(), n1rand.cuda(), n2rand.cuda(), n3rand.cuda()
 
         sample = decoder(zrand, n0rand, n1rand, n2rand, n3rand).clamp(0, 1)[:, :C, :, :]
 
