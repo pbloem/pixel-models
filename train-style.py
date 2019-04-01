@@ -30,6 +30,11 @@ from layers import PlainMaskedConv2d, MaskedConv2d
 
 SEEDFRAC = 2
 
+def standard(b, c, h, w):
+    mean = torch.zeros(b, c, h, w)
+    sig  = torch.ones(b, c, h, w)
+
+    return torch.cat([mean, sig], dim=1)
 
 class StyleEncoder(nn.Module):
 
@@ -330,11 +335,11 @@ def go(arg):
         # sample 6x12 images
         b = 6 * 12
         z  = util.sample(torch.zeros(b, zs), torch.ones(b, zs))
-        n0 = util.sample_image(torch.zeros(b, C, H, W), torch.ones(b, C, H, W))
-        n1 = util.sample_image(torch.zeros(b, channels[0], H//2, W//2), torch.ones(b, channels[0], H//2, W//2))
-        n2 = util.sample_image(torch.zeros(b, channels[1], H//4, W//4), torch.ones(b, channels[1], H//4, W//4))
-        n3 = util.sample_image(torch.zeros(b, channels[2], H//8, W//8), torch.ones(b, channels[2], H//8, W//8))
-        sample = decoder(z, n0, n1, n2, n3).clamp(0, 1)
+        n0 = util.sample_image(standard(b, C, H, W))
+        n1 = util.sample_image(standard(b, channels[0], H//2, W//2))
+        n2 = util.sample_image(standard(b, channels[1], H//4, W//4))
+        n3 = util.sample_image(standard(b, channels[2], H//8, W//8))
+        sample = decoder(z, n0, n1, n2, n3).clamp(0, 1)[:, :C, :, :]
 
         # reconstruct 6x12 images from the testset
         input = util.readn(testloader, n=6*12)
@@ -351,7 +356,7 @@ def go(arg):
         n3sample = util.sample_image(n3)
 
         # -- decoding
-        xout = decoder(zsample, n0sample, n1sample, n2sample, n2sample)
+        xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample).clamp(0, 1)[:, :C, :, :]
 
         images = torch.cat([sample, input, xout], dim=0)
 
