@@ -340,14 +340,11 @@ def go(arg):
         # sample 6x12 images
         b = 6 * 12
 
-        zrand = util.sample(torch.zeros(b, zs, device=DV), torch.ones(b, zs, device=DV))
-        n0rand = util.sample_image(standard(b, C, H, W))
-        n1rand = util.sample_image(standard(b, channels[0], H//2, W//2))
-        n2rand = util.sample_image(standard(b, channels[1], H//4, W//4))
-        n3rand = util.sample_image(standard(b, channels[2], H//8, W//8))
-
-        if torch.cuda.is_available():
-            zrand, n0rand, n1rand, n2rand, n3rand = zrand.cuda(), n0rand.cuda(), n1rand.cuda(), n2rand.cuda(), n3rand.cuda()
+        zrand  = torch.randn(b, zs, device=DV)
+        n0rand = torch.randn(b, C, H, W, device=DV)
+        n1rand = torch.randn(b, channels[0], H//2, W//2, device=DV)
+        n2rand = torch.randn(b, channels[1], H//4, W//4, device=DV)
+        n3rand = torch.randn(b, channels[2], H//8, W//8, device=DV)
 
         sample = decoder(zrand, n0rand, n1rand, n2rand, n3rand).clamp(0, 1)[:, :C, :, :]
 
