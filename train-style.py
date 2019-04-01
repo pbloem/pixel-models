@@ -339,6 +339,10 @@ def go(arg):
         n1 = util.sample_image(standard(b, channels[0], H//2, W//2))
         n2 = util.sample_image(standard(b, channels[1], H//4, W//4))
         n3 = util.sample_image(standard(b, channels[2], H//8, W//8))
+
+        if torch.cuda.is_available():
+            z, n0, n1, n2, n3 = z.cuda(), n0.cuda(), n1.cuda(), n2.cuda(), n3.cuda()
+
         sample = decoder(z, n0, n1, n2, n3).clamp(0, 1)[:, :C, :, :]
 
         # reconstruct 6x12 images from the testset
