@@ -261,6 +261,9 @@ def go(arg):
             n2sample = util.sample_image(n2)
             n3sample = util.sample_image(n3)
 
+            if random.random() < arg.zdropout:
+                zsample = zsample * 0.0
+
             # -- decoding
             xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample)
 
@@ -423,6 +426,11 @@ if __name__ == "__main__":
                         dest="lr",
                         help="Learning rate.",
                         default=0.001, type=float)
+
+    parser.add_argument("--z-dropout",
+                        dest="zdropout",
+                        help="Probability that z is disabled (for the entire batch)",
+                        default=0.0, type=float)
 
     parser.add_argument("-D", "--data-directory",
                         dest="data_dir",
