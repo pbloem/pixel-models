@@ -340,7 +340,6 @@ def go(arg):
         # sample 6x12 images
         b = 6 * 12
 
-
         z = util.sample(torch.zeros(b, zs, device=DV), torch.ones(b, zs, device=DV))
         n0 = util.sample_image(standard(b, C, H, W))
         n1 = util.sample_image(standard(b, channels[0], H//2, W//2))
@@ -354,6 +353,8 @@ def go(arg):
 
         # reconstruct 6x12 images from the testset
         input = util.readn(testloader, n=6*12)
+        if torch.cuda.is_available():
+            input = input.cuda()
         input = Variable(input)
 
         # -- encoding
