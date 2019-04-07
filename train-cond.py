@@ -147,7 +147,7 @@ def go(arg):
             target = (input.data * 255).long()
 
             if arg.half_precision:
-                input = input.half()
+                input, classes = input.half(), classes.half()
 
             if torch.cuda.is_available():
                 input, classes = input.cuda(), classes.cuda()
