@@ -281,10 +281,10 @@ def go(arg):
                                 result = model(input * mask)
                                 result = F.log_softmax(result, dim=1)
 
-                                t = target[c, i , j]
-
-                                sum_bits += - float(result[:, t, c, i, j].sum())
-                                total += input.size(0)
+                                for b in range(input.size(0)):
+                                    t = target[b, c, i, j]
+                                    sum_bits += - float(result[b, t, c, i, j].sum())
+                                    total +=1
 
                                 mask[:, c, i, j] *= 1
 
