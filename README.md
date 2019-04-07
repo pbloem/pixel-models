@@ -116,3 +116,6 @@ in the first layer. If your samples go black, check that the model can't acciden
 we are allowed to see the red value. This seems like a minor improvement, but it's crucial for good performance. Without
 it, there is little to no coordination between the colors and the picture looks like random noise.
 
+# Acknowledgements
+
+Development of this library was funded through NWO KIEM grant <>. Experiments were run on the [DAS5 cluster](https://www.cs.vu.nl/das5/gpu.shtml).
