@@ -9,6 +9,7 @@ from torchvision.datasets import coco
 from torchvision import utils
 
 from torch.nn.functional import binary_cross_entropy, relu, nll_loss, cross_entropy, softmax
+import torch.nn.functional as F
 from torch.nn import Embedding, Conv2d, Sequential, BatchNorm2d, ReLU
 from torch.optim import Adam
 
@@ -256,6 +257,40 @@ def go(arg):
             print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
                 epoch, sum(err_tr)/len(err_tr), testloss))
 
+            # Compute loss pixel by pixel, color by color, to make sure we're not leaking
+
+            if arg.pbp:
+
+                sum_bits = 0
+                total = 0
+                for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
+
+                    mask = torch.zeros(*input.size())
+
+                    if torch.cuda.is_available():
+                        input, mask = input.cuda(), mask.cuda()
+
+                    target = (input.data * 255).long()
+
+                    input = Variable(input)
+
+                    for i in range(H):
+                        for j in range(W):
+                            for c in range(C):
+
+                                result = model(input * mask)
+                                result = F.log_softmax(result, dim=1)
+
+                                t = target[c, i , j]
+
+                                sum_bits += - float(result[:, t, c, i, j].sum())
+                                total += input.size(0)
+
+                                mask[:, c, i, j] *= 1
+
+                print('epoch={:02}; pixel-by-pixel test loss: {:.3f}'.format(
+                    epoch,sum_bits/total))
+
             model.train(False)
             sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0), batch_size=arg.batch_size)
             sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, W), batch_size=arg.batch_size)
@@ -291,6 +326,11 @@ if __name__ == "__main__":
     parser.add_argument("--no-hv",
                         dest="no_hv",
                         help="Turns off the connection between the horizontal and vertical stack in the gated layer",
+                        action='store_true')
+
+    parser.add_argument("--pixel-by-pixel",
+                        dest="pbp",
+                        help="Compute a pixel-by-pixel loss on the test set every epoch. Slow, but more certain to be fair than the plain test loss.",
                         action='store_true')
 
     parser.add_argument("-e", "--epochs",
