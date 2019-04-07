@@ -117,8 +117,8 @@ def go(arg):
     testcls_zeros = testcls_zeros.unsqueeze(1).expand(12, 6, CLS).contiguous().view(72, 1, CLS).squeeze(1)
 
     if arg.half_precision:
-        sample_init_seeds = sample_init_seeds.half()
-        sample_init_zeros = sample_init_zeros.half()
+        sample_init_seeds, testcls_seeds = sample_init_seeds.half(), testcls_seeds.half()
+        sample_init_zeros, testcls_zeros = sample_init_zeros.half(), testcls_zeros.half()
 
     optimizer = Adam(model.parameters(), lr=arg.lr)
 
@@ -182,7 +182,7 @@ def go(arg):
             classes = util.one_hot(classes, CLS)
 
             if arg.half_precision:
-                input = input.half()
+                input, classes = input.half(), classes.half()
 
             if torch.cuda.is_available():
                 input, classes = input.cuda(), classes.cuda()
