@@ -457,7 +457,6 @@ def prod(xs):
 
     return res
 
-
 def batched(input, model, batch_size, cuda=torch.cuda.is_available()):
     """
     Performs inference in batches. Input and output are non-variable, non-gpu tensors.
@@ -484,4 +483,5 @@ def batched(input, model, batch_size, cuda=torch.cuda.is_available()):
         del batch
 
     return torch.cat(out_batches, dim=0)
+
 

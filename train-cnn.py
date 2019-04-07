@@ -225,36 +225,43 @@ def go(arg):
         # - we evaluate on the test set, since this is only a simple reproduction experiment
         #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
-        err_te = []
-        model.train(False)
+        with torch.no_grad():
 
-        for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
-            if arg.limit is not None and i * arg.batch_size > arg.limit:
-                break
+            err_test = 0.0
+            err_total = 0
 
-            if torch.cuda.is_available():
-                input = input.cuda()
+            model.train(False)
 
-            target = (input.data * 255).long()
-            input, target = Variable(input), Variable(target)
+            for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
+                if arg.limit is not None and i * arg.batch_size > arg.limit:
+                    break
 
-            result = model(input)
-            loss = cross_entropy(result, target)
+                if torch.cuda.is_available():
+                    input = input.cuda()
 
-            err_te.append(loss.data.item())
+                target = (input.data * 255).long()
+                input, target = Variable(input), Variable(target)
 
-        del loss, result
+                result = model(input)
+                loss = cross_entropy(result, target, reduction='none')
 
-        tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
-        print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
-            epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
+                err_test += float(loss.data.sum())
+                err_total += util.prod(input.size())
 
-        model.train(False)
-        sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0), batch_size=arg.batch_size)
-        sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, W), batch_size=arg.batch_size)
-        sample = torch.cat([sample_zeros, sample_seeds], dim=0)
+            del loss, result
 
-        utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
+            testloss = err_test/err_total
+
+            tbw.add_scalar('pixel-models/test-loss', testloss, epoch)
+            print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
+                epoch, sum(err_tr)/len(err_tr), testloss))
+
+            model.train(False)
+            sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0), batch_size=arg.batch_size)
+            sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, W), batch_size=arg.batch_size)
+            sample = torch.cat([sample_zeros, sample_seeds], dim=0)
+
+            utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
 
 if __name__ == "__main__":
 
