@@ -27,18 +27,50 @@ from tensorboardX import SummaryWriter
 
 from layers import PlainMaskedConv2d, MaskedConv2d, CMaskedConv2d
 
+
+"""
+Mixed precision version of the conditional experiment. Allows larger models to be trained in the same memory. Requires 
+Tesla GPUs, like the 2080Ti. 
+
+Requires NVIDIA apex to be installed. See https://github.com/nvidia/apex
+
+"""
+
 SEEDFRAC = 2
 
-def draw_sample(seeds, classes, model, seedsize=(0, 0)):
+def batched(input, classes, model, batch_size, cuda=torch.cuda.is_available()):
+    """
+    Performs inference in batches. Input and output are non-variable, non-cuda'd tensors.
+
+    :param input:
+    :param model:
+    :param batch_size:
+    :param cuda:
+    :return:
+    """
+    n = input.size(0)
+
+    out_batches = []
+    for fr in range(0, n, batch_size):
+
+        to = min(n, fr + batch_size)
+        batch, bcl = input[fr:to], classes[fr:to]
+
+        if cuda:
+            batch, bcl = batch.cuda(), bcl.cuda()
+        batch, bcl = Variable(batch), Variable(bcl)
+
+        out_batches.append(model(batch, bcl).cpu().data)
+
+        del batch
+
+    return torch.cat(out_batches, dim=0)
+
+def draw_sample(seeds, classes, model, seedsize=(0, 0), batch_size=16):
 
     b, c, h, w = seeds.size()
 
     sample = seeds.clone()
-
-    if torch.cuda.is_available():
-        sample, classes = sample.cuda(), classes.cuda()
-
-    sample, classes = Variable(sample), Variable(classes)
 
     for i in tqdm.trange(h):
         for j in range(w):
@@ -46,7 +78,7 @@ def draw_sample(seeds, classes, model, seedsize=(0, 0)):
                 continue
 
             for channel in range(c):
-                result = model(sample, classes)
+                result = batched(sample, classes, model, batch_size)
                 probs = softmax(result[:, :, channel, i, j]).data
 
                 pixel_sample = torch.multinomial(probs, 1).float() / 255.
