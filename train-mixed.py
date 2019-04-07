@@ -150,7 +150,7 @@ def go(arg):
 
             # Forward pass
             result = model(input, classes)
-            loss = scaled_loss(result, target)
+            loss = cross_entropy(result, target)
 
             instances_seen += input.size(0)
             tbw.add_scalar('pixel-models/training-loss', loss.data.item(), instances_seen)
