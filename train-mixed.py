@@ -124,81 +124,81 @@ def go(arg):
         model.cuda()
 
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
-    loss = cross_entropy
 
-    with amp.scale_loss(loss, optimizer) as scaled_loss:
-        instances_seen = 0
-        for epoch in range(arg.epochs):
+    instances_seen = 0
+    for epoch in range(arg.epochs):
 
-            # Train
-            err_tr = []
-            model.train(True)
+        # Train
+        err_tr = []
+        model.train(True)
 
-            for i, (input, classes) in enumerate(tqdm.tqdm(trainloader)):
-                if arg.limit is not None and i * arg.batch_size > arg.limit:
-                    break
+        for i, (input, classes) in enumerate(tqdm.tqdm(trainloader)):
+            if arg.limit is not None and i * arg.batch_size > arg.limit:
+                break
 
-                # Prepare the input
-                b, c, w, h = input.size()
+            # Prepare the input
+            b, c, w, h = input.size()
 
-                classes = util.one_hot(classes, CLS)
+            classes = util.one_hot(classes, CLS)
 
-                if torch.cuda.is_available():
-                    input, classes = input.cuda(), classes.cuda()
+            if torch.cuda.is_available():
+                input, classes = input.cuda(), classes.cuda()
 
-                target = (input.data * 255).long()
+            target = (input.data * 255).long()
 
-                input, classes, target = Variable(input), Variable(classes), Variable(target)
+            input, classes, target = Variable(input), Variable(classes), Variable(target)
 
-                # Forward pass
-                result = model(input, classes)
+            # Forward pass
+            result = model(input, classes)
+            loss = scaled_loss(result, target)
 
-                loss = scaled_loss(result, target)
+            instances_seen += input.size(0)
+            tbw.add_scalar('pixel-models/training-loss', loss.data.item(), instances_seen)
+            err_tr.append(loss.data.item())
 
-                instances_seen += input.size(0)
-                tbw.add_scalar('pixel-models/training-loss', loss.data.item(), instances_seen)
-                err_tr.append(loss.data.item())
+            # Backward pass
+            optimizer.zero_grad()
 
-                # Backward pass
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
 
-            # Evaluate
-            # - we evaluate on the test set, since this is only a simpe reproduction experiment
-            #   make sure to split off a validation set if you want to tune hyperparameters for something important
+            optimizer.step()
 
-            err_te = []
-            model.train(False)
+        # Evaluate
+        # - we evaluate on the test set, since this is only a simpe reproduction experiment
+        #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
-            for i, (input, classes) in enumerate(tqdm.tqdm(testloader)):
-                if arg.limit is not None and i * arg.batch_size > arg.limit:
-                    break
+        err_te = []
+        model.train(False)
 
-                classes = util.one_hot(classes, CLS)
+        for i, (input, classes) in enumerate(tqdm.tqdm(testloader)):
+            if arg.limit is not None and i * arg.batch_size > arg.limit:
+                break
 
-                if torch.cuda.is_available():
-                    input, classes = input.cuda(), classes.cuda()
+            classes = util.one_hot(classes, CLS)
 
-                target = (input.data * 255).long()
+            if torch.cuda.is_available():
+                input, classes = input.cuda(), classes.cuda()
 
-                input, classes, target = Variable(input), Variable(classes), Variable(target)
+            target = (input.data * 255).long()
 
-                result = model(input, classes)
-                loss = cross_entropy(result, target)
+            input, classes, target = Variable(input), Variable(classes), Variable(target)
 
-                err_te.append(loss.data.item())
+            result = model(input, classes)
+            loss = cross_entropy(result, target)
 
-            tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
-            print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
-                epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
+            err_te.append(loss.data.item())
 
-            model.train(False)
-            sample_zeros = draw_sample(sample_init_zeros, testcls_zeros, model, seedsize=(0, 0))
-            sample_seeds = draw_sample(sample_init_seeds, testcls_seeds, model, seedsize=(sh, W))
-            sample = torch.cat([sample_zeros, sample_seeds], dim=0)
+        tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
+        print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
+            epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
-            utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
+        model.train(False)
+        sample_zeros = draw_sample(sample_init_zeros, testcls_zeros, model, seedsize=(0, 0))
+        sample_seeds = draw_sample(sample_init_seeds, testcls_seeds, model, seedsize=(sh, W))
+        sample = torch.cat([sample_zeros, sample_seeds], dim=0)
+
+        utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
 
 if __name__ == "__main__":
 
