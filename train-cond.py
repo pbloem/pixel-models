@@ -102,7 +102,6 @@ def go(arg):
     sample_init_zeros = torch.zeros(72, C, H, W)
     sample_init_seeds = torch.zeros(72, C, H, W)
 
-
     sh, sw = H//SEEDFRAC, W//SEEDFRAC
 
     # Init second half of sample with patches from test set, to seed the sampling
@@ -117,7 +116,14 @@ def go(arg):
     testcls_zeros = util.readn(testloader, n=24, cls=True, maxval=CLS)[12:]
     testcls_zeros = testcls_zeros.unsqueeze(1).expand(12, 6, CLS).contiguous().view(72, 1, CLS).squeeze(1)
 
+    if arg.half_precision:
+        sample_init_seeds = sample_init_seeds.half()
+        sample_init_zeros = sample_init_zeros.half()
+
     optimizer = Adam(model.parameters(), lr=arg.lr)
+
+    if arg.half_precision:
+        model.half();
 
     if torch.cuda.is_available():
         model.cuda()
@@ -138,10 +144,13 @@ def go(arg):
 
             classes = util.one_hot(classes, CLS)
 
+            target = (input.data * 255).long()
+
+            if arg.half_precision:
+                input = input.half()
+
             if torch.cuda.is_available():
                 input, classes = input.cuda(), classes.cuda()
-
-            target = (input.data * 255).long()
 
             input, classes, target = Variable(input), Variable(classes), Variable(target)
 
@@ -171,6 +180,9 @@ def go(arg):
                 break
 
             classes = util.one_hot(classes, CLS)
+
+            if arg.half_precision:
+                input = input.half()
 
             if torch.cuda.is_available():
                 input, classes = input.cuda(), classes.cuda()
@@ -224,10 +236,14 @@ if __name__ == "__main__":
                         help="Turns off the connection between the horizontal and vertical stack in the gated layer",
                         action='store_true')
 
-
     parser.add_argument("--batch-norm",
                         dest="batch_norm",
                         help="Turns on batch normalization after each layer",
+                        action='store_true')
+
+    parser.add_argument("--half-precision",
+                        dest="half_precision",
+                        help="Turns on half-precision (16 bit floats). This doubles the effective memory on compatible GPUs, like the 2080 Ti.",
                         action='store_true')
 
     parser.add_argument("-e", "--epochs",
@@ -248,7 +264,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--channels",
                         dest="channels",
                         help="Number of channels (aka featur maps) for the intermediate representations.",
-                        default=64, type=int)
+                        default=60, type=int)
 
     parser.add_argument("-b", "--batch-size",
                         dest="batch_size",
