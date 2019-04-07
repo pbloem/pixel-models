@@ -226,8 +226,8 @@ def go(arg):
             epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
         model.train(False)
-        sample_zeros = draw_sample(sample_init_zeros, testcls_zeros, model, seedsize=(0, 0))
-        sample_seeds = draw_sample(sample_init_seeds, testcls_seeds, model, seedsize=(sh, W))
+        sample_zeros = draw_sample(sample_init_zeros, testcls_zeros, model, seedsize=(0, 0), batch_size=arg.batch_size)
+        sample_seeds = draw_sample(sample_init_seeds, testcls_seeds, model, seedsize=(sh, W), batch_size=arg.batch_size)
         sample = torch.cat([sample_zeros, sample_seeds], dim=0)
 
         utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
