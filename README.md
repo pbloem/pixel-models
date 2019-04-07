@@ -88,6 +88,13 @@ In the conditional variant, we provide the model the with image class as a condi
 
 #### MNIST
 
+```
+python -u /home/pbloem/git/pixel-models/train-cond.py -e 15 -b 64 -x 5 -k 5 -c 30 -l 0.001 -m gated -t mnist
+```
+
+![](./images/cond5by5.png)
+
+
 #### CIFAR10
 
 ### PixelVAE
