@@ -144,13 +144,13 @@ def go(arg):
 
             classes = util.one_hot(classes, CLS)
 
-            target = (input.data * 255).long()
-
             if arg.half_precision:
                 input, classes = input.half(), classes.half()
 
             if torch.cuda.is_available():
                 input, classes = input.cuda(), classes.cuda()
+
+            target = (input.data * 255).long()
 
             input, classes, target = Variable(input), Variable(classes), Variable(target)
 
@@ -188,6 +188,7 @@ def go(arg):
                 input, classes = input.cuda(), classes.cuda()
 
             target = (input.data * 255).long()
+
             input, classes, target = Variable(input), Variable(classes), Variable(target)
 
             result = model(input, classes)
