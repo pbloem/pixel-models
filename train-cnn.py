@@ -274,19 +274,19 @@ def go(arg):
 
                     input = Variable(input)
 
-                    for i in range(H):
-                        for j in range(W):
+                    for h in range(H):
+                        for w in range(W):
                             for c in range(C):
 
                                 result = model(input * mask)
                                 result = F.log_softmax(result, dim=1)
 
                                 for b in range(input.size(0)):
-                                    t = target[b, c, i, j]
-                                    sum_bits += - float(result[b, t, c, i, j].sum())
-                                    total +=1
+                                    t = target[b, c, h, w]
+                                    sum_bits += - float(result[b, t, c, h, w].sum())
+                                    total += 1
 
-                                mask[:, c, i, j] *= 1
+                                mask[:, c, h, w] += 1
 
                 print('epoch={:02}; pixel-by-pixel test loss: {:.3f}'.format(
                     epoch,sum_bits/total))
