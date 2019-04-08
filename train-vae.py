@@ -211,6 +211,7 @@ def go(arg):
             rec = pixcnn(input, out)
 
             rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
+            rec_loss = rec_loss * util.LOG2E  # Convert from nats to bits
 
             loss = (rec_loss + kl_loss).mean()
 
@@ -225,56 +226,60 @@ def go(arg):
             loss.backward()
             optimizer.step()
 
-        # Evaluate
-        # - we evaluate on the test set, since this is only a simple reproduction experiment
-        #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
-        err_te = []
+        if epoch % arg.eval_every == 0:
+            with torch.no_grad():
 
-        for m in mods:
-            m.train(False)
+                # Evaluate
+                # - we evaluate on the test set, since this is only a simple reproduction experiment
+                #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
-        for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
-            if arg.limit is not None and i * arg.batch_size > arg.limit:
-                break
+                err_te = []
 
-            b, c, w, h = input.size()
+                for m in mods:
+                    m.train(False)
 
-            if torch.cuda.is_available():
-                input = input.cuda()
+                for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
+                    if arg.limit is not None and i * arg.batch_size > arg.limit:
+                        break
 
-            target = (input.data * 255).long()
-            input, target = Variable(input), Variable(target)
+                    b, c, w, h = input.size()
 
-            zs = encoder(input)
+                    if torch.cuda.is_available():
+                        input = input.cuda()
 
-            kl_loss = util.kl_loss(*zs)
-            z = util.sample(*zs)
+                    target = (input.data * 255).long()
+                    input, target = Variable(input), Variable(target)
 
-            out = decoder(z)
+                    zs = encoder(input)
 
-            rec = pixcnn(input, out)
+                    kl_loss = util.kl_loss(*zs)
+                    z = util.sample(*zs)
 
-            rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
+                    out = decoder(z)
 
-            loss = (rec_loss + kl_loss).mean()
+                    rec = pixcnn(input, out)
 
-            loss = loss * util.LOG2E  # Convert from nats to bits
+                    rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
 
-            err_te.append(loss.data.item())
+                    loss = (rec_loss + kl_loss).mean()
 
-        tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
-        print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
-            epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
+                    loss = loss * util.LOG2E  # Convert from nats to bits
 
-        for m in mods:
-            m.train(False)
+                    err_te.append(loss.data.item())
 
-        sample_zeros = draw_sample(sample_init_zeros, decoder, pixcnn, sample_zs, seedsize=(0, 0))
-        sample_seeds = draw_sample(sample_init_seeds, decoder, pixcnn, sample_zs, seedsize=(sh, W))
-        sample = torch.cat([sample_zeros, sample_seeds], dim=0)
+                tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
+                print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
+                    epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
-        utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
+                for m in mods:
+                    m.train(False)
+
+                sample_zeros = draw_sample(sample_init_zeros, decoder, pixcnn, sample_zs, seedsize=(0, 0))
+                sample_seeds = draw_sample(sample_init_seeds, decoder, pixcnn, sample_zs, seedsize=(sh, W))
+                sample = torch.cat([sample_zeros, sample_seeds], dim=0)
+
+                utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
 
 if __name__ == "__main__":
 
@@ -310,6 +315,11 @@ if __name__ == "__main__":
                         dest="epochs",
                         help="Number of epochs.",
                         default=150, type=int)
+
+    parser.add_argument("--evaluate-every",
+                        dest="eval_every",
+                        help="Run an exaluation/sample every n epochs.",
+                        default=1, type=int)
 
     parser.add_argument("-k", "--kernel_size",
                         dest="kernel_size",

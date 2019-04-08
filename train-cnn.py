@@ -211,6 +211,8 @@ def go(arg):
 
             loss = cross_entropy(result, target)
 
+            loss = loss * util.LOG2E  # Convert from nats to bits
+
             instances_seen += input.size(0)
             tbw.add_scalar('pixel-models/training-loss', float(loss.data.item()), instances_seen)
             err_tr.append(float(loss.data.item()))
@@ -226,79 +228,80 @@ def go(arg):
         # - we evaluate on the test set, since this is only a simple reproduction experiment
         #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
-        with torch.no_grad():
+        if epoch % arg.eval_every == 0:
+            with torch.no_grad():
 
-            err_test = 0.0
-            err_total = 0
+                err_test = 0.0
+                err_total = 0
 
-            model.train(False)
+                model.train(False)
 
-            for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
-                if arg.limit is not None and i * arg.batch_size > arg.limit:
-                    break
-
-                if torch.cuda.is_available():
-                    input = input.cuda()
-
-                target = (input.data * 255).long()
-                input, target = Variable(input), Variable(target)
-
-                result = model(input)
-                loss = cross_entropy(result, target, reduction='none')
-
-                loss = loss * util.LOG2E # Convert from nats to bits
-
-                err_test += float(loss.data.sum())
-                err_total += util.prod(input.size())
-
-            del loss, result
-
-            testloss = err_test/err_total
-
-            tbw.add_scalar('pixel-models/test-loss', testloss, epoch)
-            print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
-                epoch, sum(err_tr)/len(err_tr), testloss))
-
-            # Compute loss pixel by pixel, color by color, to make sure we're not leaking
-
-            if arg.pbp:
-
-                sum_bits = 0
-                total = 0
                 for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
-
-                    mask = torch.zeros(*input.size())
+                    if arg.limit is not None and i * arg.batch_size > arg.limit:
+                        break
 
                     if torch.cuda.is_available():
-                        input, mask = input.cuda(), mask.cuda()
+                        input = input.cuda()
 
                     target = (input.data * 255).long()
+                    input, target = Variable(input), Variable(target)
 
-                    input = Variable(input)
+                    result = model(input)
+                    loss = cross_entropy(result, target, reduction='none')
 
-                    for h in range(H):
-                        for w in range(W):
-                            for c in range(C):
+                    loss = loss * util.LOG2E # Convert from nats to bits
 
-                                result = model(input * mask)
-                                result = F.log_softmax(result, dim=1)
+                    err_test += float(loss.data.sum())
+                    err_total += util.prod(input.size())
 
-                                for b in range(input.size(0)):
-                                    t = target[b, c, h, w]
-                                    sum_bits += - float(result[b, t, c, h, w].sum())
-                                    total += 1
+                del loss, result
 
-                                mask[:, c, h, w] += 1
+                testloss = err_test/err_total
 
-                print('epoch={:02}; pixel-by-pixel test loss: {:.3f}'.format(
-                    epoch,sum_bits/total))
+                tbw.add_scalar('pixel-models/test-loss', testloss, epoch)
+                print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
+                    epoch, sum(err_tr)/len(err_tr), testloss))
 
-            model.train(False)
-            sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0), batch_size=arg.batch_size)
-            sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, W), batch_size=arg.batch_size)
-            sample = torch.cat([sample_zeros, sample_seeds], dim=0)
+                # Compute loss pixel by pixel, color by color, to make sure we're not leaking
 
-            utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
+                if arg.pbp:
+
+                    sum_bits = 0
+                    total = 0
+                    for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
+
+                        mask = torch.zeros(*input.size())
+
+                        if torch.cuda.is_available():
+                            input, mask = input.cuda(), mask.cuda()
+
+                        target = (input.data * 255).long()
+
+                        input = Variable(input)
+
+                        for h in range(H):
+                            for w in range(W):
+                                for c in range(C):
+
+                                    result = model(input * mask)
+                                    result = F.log_softmax(result, dim=1)
+
+                                    for b in range(input.size(0)):
+                                        t = target[b, c, h, w]
+                                        sum_bits += - float(result[b, t, c, h, w].sum())
+                                        total += 1
+
+                                    mask[:, c, h, w] += 1
+
+                    print('epoch={:02}; pixel-by-pixel test loss: {:.3f}'.format(
+                        epoch,sum_bits/total))
+
+                model.train(False)
+                sample_zeros = draw_sample(sample_init_zeros, model, seedsize=(0, 0), batch_size=arg.batch_size)
+                sample_seeds = draw_sample(sample_init_seeds, model, seedsize=(sh, W), batch_size=arg.batch_size)
+                sample = torch.cat([sample_zeros, sample_seeds], dim=0)
+
+                utils.save_image(sample, 'sample_{:02d}.png'.format(epoch), nrow=12, padding=0)
 
 if __name__ == "__main__":
 
@@ -339,6 +342,11 @@ if __name__ == "__main__":
                         dest="epochs",
                         help="Number of epochs.",
                         default=15, type=int)
+
+    parser.add_argument("--evaluate-every",
+                        dest="eval_every",
+                        help="Run an exaluation/sample every n epochs.",
+                        default=1, type=int)
 
     parser.add_argument("-k", "--kernel_size",
                         dest="kernel_size",

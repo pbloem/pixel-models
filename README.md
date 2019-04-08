@@ -123,6 +123,9 @@ in the first layer. If your samples go black, check that the model can't acciden
 we are allowed to see the red value. This seems like a minor improvement, but it's crucial for good performance. Without
 it, there is little to no coordination between the colors and the picture looks like random noise.
 
+* The output of a standard log-softmax layer is the natural logarithm of the probability. This gives you the (negative) 
+codelength in _nats_. For _bits_ (the standard evaluation metric in these papers) you need to mulitply by log_2(e).  
+
 # Acknowledgements
 
 Development of this library was funded through NWO KIEM grant <>. Experiments were run on the [DAS5 cluster](https://www.cs.vu.nl/das5/gpu.shtml).

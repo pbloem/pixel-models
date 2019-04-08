@@ -397,6 +397,11 @@ if __name__ == "__main__":
                         help="Number of epochs.",
                         default=150, type=int)
 
+    parser.add_argument("--evaluate-every",
+                        dest="eval_every",
+                        help="Run an exaluation/sample every n epochs.",
+                        default=1, type=int)
+
     parser.add_argument("-k", "--kernel_size",
                         dest="kernel_size",
                         help="Size of convolution kernel",
