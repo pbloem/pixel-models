@@ -218,6 +218,7 @@ def go(arg):
 
             result = model(input, classes)
             loss = cross_entropy(result, target)
+            loss = loss * util.LOG2E  # Convert from nats to bits
 
             err_te.append(loss.data.item())
 

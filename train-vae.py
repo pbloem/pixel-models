@@ -259,6 +259,8 @@ def go(arg):
 
             loss = (rec_loss + kl_loss).mean()
 
+            loss = loss * util.LOG2E  # Convert from nats to bits
+
             err_te.append(loss.data.item())
 
         tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)

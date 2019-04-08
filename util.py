@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib.gridspec as gridspec
 
+LOG2E = math.log2(math.e)
+
 def log_anneal(step, total, temp=1):
     """ Logistic annealing function
     :param step:
