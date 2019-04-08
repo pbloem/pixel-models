@@ -8,7 +8,7 @@ to show that they reproduce the performance of the published versions. If you ar
 please don't use this code as is.
 
 Specifically:
-* The simple and gated models seem to work. However, the current test set loss is considerably better than the state of the art on CIFAR10. This is most likely a detail in the computation of the loss. If you use this for anything important, make sure to implement your own evaluation.
+* The simple, gated and conditional models seem to work. I'm still how close I can get the evaluation to the published numbers.
 * CIFAR evaluation is difficult. It took the original authors 60 hours training on 32 GPUs to train a 20-layer model with about 380 channels per layer. That's more than I have available, but I'll see how far I can get with more modest hardware.
 * The VAE is a work in progress.
  
