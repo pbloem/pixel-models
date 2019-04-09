@@ -10,17 +10,18 @@ please don't use this code as is.
 Specifically:
 * The simple, gated and conditional models seem to work. I'm still checking how close I can get the evaluation to the published numbers.
 * CIFAR evaluation is difficult. It took the original authors 60 hours training on 32 GPUs to train a 20-layer model with about 380 channels per layer. That's more than I have available, but I'll see how far I can get with more modest hardware.
-* The VAE is a work in progress.
+* The VAE is a work in progress. It deviates slightly from the published version (for instance by not concatenating the 
+VAE output, but using the location-dependent conditional from the original pixelCNN).Most likely, these details are not 
+that important.
  
 ## Tasks (i.e. datasets)
 
-```MNIST``` and ```CIFAR``` datasets are downloaded automatically. For the ```imagenet64``` dataset, download the following torrent: 
-[Academic torrents](http://academictorrents.com/details/96816a530ee002254d29bf7a61c0c158d3dedc3b)
- [magnet link](https://goo.gl/nr7NFi) 
-Place the train and test data in some directory (say ```~/data/imagenet/```), containing subdirectories ```train``` and ```valid```. These should each 
-contain an additional subdirectory (with any name), which contains the images.
+```MNIST``` and ```CIFAR``` datasets are downloaded automatically. The ```imagenet64``` dataset can be 
+[downloaded here](http://image-net.org/small/download.php). Place the train and test data in some 
+directory (say ```~/data/imagenet/```), containing subdirectories ```train``` and ```valid```. These should each 
+contain **an additional subdirectory** (with any name), which contains the images.
  
-Then call the training script as follows:
+Then call one of the training scripts as follows:
 ```python train-cnn.py -t imagenet64 -D ~/data/imagenet/```
 
 ## Results
@@ -95,7 +96,16 @@ python -u /home/pbloem/git/pixel-models/train-cond.py -e 15 -b 64 -x 5 -k 5 -c 3
 
 #### CIFAR10
 
+12 layer, 5x5 kernel after 50 epochs (trained with mixed precision):
+
+![](./images/mixed12by5at50.png)
+
+
 ### PixelVAE
+
+#### CIFAR10
+
+#### Imagenet 64
 
 ## Usage notes
 
@@ -126,4 +136,5 @@ codelength in _nats_. For _bits_ (the standard evaluation metric in these papers
 
 # Acknowledgements
 
-Development of this library was funded through NWO KIEM grant <>. Experiments were run on the [DAS5 cluster](https://www.cs.vu.nl/das5/gpu.shtml).
+Development of this library was funded through NWO KIEM project [Score!](https://pbloeb.github.io/score) (grant number
+ 314-98-121). Experiments were run on the [DAS5 cluster](https://www.cs.vu.nl/das5/gpu.shtml).

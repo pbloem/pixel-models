@@ -332,7 +332,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-d", "--vae-depth",
                         dest="vae_depth",
-                        help="Depth of the VAE in blocks (in addition to the 3 default blocks)",
+                        help="Depth of the VAE in blocks (in addition to the 3 default blocks). Each block halves the resolution in each dimension with a 2x2 maxpooling layer.",
                         default=0, type=int)
 
     parser.add_argument("-c", "--channels",
@@ -349,16 +349,6 @@ if __name__ == "__main__":
                         dest="zsize",
                         help="Size of latent space.",
                         default=32, type=int)
-
-    parser.add_argument("-L", "--latent-size",
-                        dest="latent_size",
-                        help="Size of the latent representations.",
-                        default=32, type=int)
-
-    parser.add_argument("-E", "--embedding-size",
-                        dest="embedding_size",
-                        help="Size of the embeddings.",
-                        default=300, type=int)
 
     parser.add_argument("--limit",
                         dest="limit",
