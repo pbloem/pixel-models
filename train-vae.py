@@ -227,7 +227,7 @@ def go(arg):
             optimizer.step()
 
 
-        if epoch % arg.eval_every == 0:
+        if epoch % arg.eval_every == 0 and epoch != 0:
             with torch.no_grad():
 
                 # Evaluate
@@ -261,10 +261,9 @@ def go(arg):
                     rec = pixcnn(input, out)
 
                     rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
+                    rec_loss_bits = rec_loss * util.LOG2E  # Convert from nats to bits
 
                     loss = (rec_loss + kl_loss).mean()
-
-                    loss = loss * util.LOG2E  # Convert from nats to bits
 
                     err_te.append(loss.data.item())
 

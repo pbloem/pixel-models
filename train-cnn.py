@@ -228,7 +228,7 @@ def go(arg):
         # - we evaluate on the test set, since this is only a simple reproduction experiment
         #   make sure to split off a validation set if you want to tune hyperparameters for something important
 
-        if epoch % arg.eval_every == 0:
+        if epoch % arg.eval_every == 0 and epoch != 0:
             with torch.no_grad():
 
                 err_test = 0.0

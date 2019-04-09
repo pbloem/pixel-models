@@ -34,17 +34,15 @@ A very simple network (5 layers, 5 by 5 kernel, 30 channels):
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 5 -k 5 -c 30 -l 0.001 -m simple -t mnist
 
-epoch=14; training loss: 0.770; test loss: 0.766
 ```
 After 15 epochs:
 
 ![](./images/simple5by5.png)
 
-With some 12 layers and 63 channels:
+With 9 layers and 63 channels:
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 9 -k 5 -c 63 -l 0.001 -m simple -t mnist
 
-epoch=14; training loss: 0.734; test loss: 0.732
 ```
 After 15 epochs:
 
@@ -55,7 +53,6 @@ After 15 epochs:
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 5 -k 5 -c 30 -l 0.001 -m gated -t mnist
 
-epoch=14; training loss: 0.765; test loss: 0.737
 ```
 After 15 epochs:
 
@@ -64,7 +61,6 @@ After 15 epochs:
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 50 -b 64 -x 9 -k 5 -c 63 -l 0.0001 -m gated -t mnist
 
-epoch=49; training loss: 0.696; test loss: 0.687
 ```
 After _50_ epochs:
 
@@ -73,10 +69,12 @@ After _50_ epochs:
 
 #### On CIFAR10 
 
+Note that state-of-the art performance on CIFAR requires training on many GPUs. These are 
+basic approximations.
+
 ```
 python -u /home/pbloem/git/pixel-models/train-cnn.py -e 15 -b 64 -x 12 -k 5 -c 30 -l 0.001 -m gated -t cifar10
 
-epoch=14; training loss: 2.643; test loss: 2.629
 ```
 After 15 epochs:
 

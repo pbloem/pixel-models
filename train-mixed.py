@@ -197,7 +197,7 @@ def go(arg):
 
             optimizer.step()
 
-        if epoch % arg.eval_every == 0:
+        if epoch % arg.eval_every == 0 and epoch != 0:
             with torch.no_grad():
 
                 # Evaluate
