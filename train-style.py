@@ -305,9 +305,9 @@ def go(arg):
             m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
             rec_loss = - m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
 
-            bz, b0, b1, b2, b3, b4, b5 = arg.betas
+            br, bz, b0, b1, b2, b3, b4, b5 = arg.betas
 
-            loss = rec_loss + bz * zkl + b0 * n0kl + b1 * n1kl + b2 * n2kl + b3 * n3kl + b4 * n4kl + b5 * n5kl
+            loss = br * rec_loss + bz * zkl + b0 * n0kl + b1 * n1kl + b2 * n2kl + b3 * n3kl + b4 * n4kl + b5 * n5kl
             loss = loss.mean(dim=0)
 
             instances_seen += input.size(0)
@@ -468,10 +468,10 @@ if __name__ == "__main__":
 
     parser.add_argument('--betas',
                         dest='betas',
-                        help="Scaling parameters of the kl losses. The first is for the z parameter, the rest are for the noise parameters in order. Provide exactly 7 floats.",
-                        nargs=7,
+                        help="Scaling parameters of the kl losses. The first two are for reconstruction loss and the z parameter, the rest are for the noise parameters in order. Provide exactly 7 floats.",
+                        nargs=8,
                         type=float,
-                        default=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+                        default=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 
     parser.add_argument("--limit",
                         dest="limit",
