@@ -64,6 +64,8 @@ class StyleEncoder(nn.Module):
         self.affine4 = nn.Linear(util.prod((c4, h//16, w//16)), 2 * zs)
         self.affine5 = nn.Linear(util.prod((c5, h//32, w//32)), 2 * zs)
 
+        self.affinez = nn.Linear(12 * zs, 2 * zs)
+
         # 1x1 convolution to distribution on "noise space"
         self.tonoise0 = nn.Conv2d(c,  2*c,  kernel_size=1, padding=0)
         self.tonoise1 = nn.Conv2d(c1, 2*c1, kernel_size=1, padding=0)
@@ -107,7 +109,7 @@ class StyleEncoder(nn.Module):
             z3[:, :, None],
             z4[:, :, None],
             z5[:, :, None]], dim=2)
-        z = zbatch.mean(dim=2)
+        z = self.affinez(zbatch.view(b, -1))
 
         return z, n0, n1, n2, n3, n4, n5
 
@@ -454,12 +456,6 @@ if __name__ == "__main__":
                         dest="kernel_size",
                         help="Size of convolution kernel",
                         default=3, type=int)
-
-    parser.add_argument("-c", "--channels",
-                        dest="channels",
-                        help="Number of channels (aka feature maps) for the intermediate representations. Should be divisible by the number of colors.",
-                        default=60, type=int)
-
     parser.add_argument("-b", "--batch-size",
                         dest="batch_size",
                         help="Size of the batches.",
