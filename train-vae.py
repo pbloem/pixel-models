@@ -239,37 +239,38 @@ def go(arg):
                 for m in mods:
                     m.train(False)
 
-                for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
-                    if arg.limit is not None and i * arg.batch_size > arg.limit:
-                        break
+                if not arg.skip_test:
+                    for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
+                        if arg.limit is not None and i * arg.batch_size > arg.limit:
+                            break
 
-                    b, c, w, h = input.size()
+                        b, c, w, h = input.size()
 
-                    if torch.cuda.is_available():
-                        input = input.cuda()
+                        if torch.cuda.is_available():
+                            input = input.cuda()
 
-                    target = (input.data * 255).long()
-                    input, target = Variable(input), Variable(target)
+                        target = (input.data * 255).long()
+                        input, target = Variable(input), Variable(target)
 
-                    zs = encoder(input)
+                        zs = encoder(input)
 
-                    kl_loss = util.kl_loss(*zs)
-                    z = util.sample(*zs)
+                        kl_loss = util.kl_loss(*zs)
+                        z = util.sample(*zs)
 
-                    out = decoder(z)
+                        out = decoder(z)
 
-                    rec = pixcnn(input, out)
+                        rec = pixcnn(input, out)
 
-                    rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
-                    rec_loss_bits = rec_loss * util.LOG2E  # Convert from nats to bits
+                        rec_loss = cross_entropy(rec, target, reduce=False).view(b, -1).sum(dim=1)
+                        rec_loss_bits = rec_loss * util.LOG2E  # Convert from nats to bits
 
-                    loss = (rec_loss + kl_loss).mean()
+                        loss = (rec_loss + kl_loss).mean()
 
-                    err_te.append(loss.data.item())
+                        err_te.append(loss.data.item())
 
-                tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
-                print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
-                    epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
+                    tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
+                    print('epoch={:02}; training loss: {:.3f}; test loss: {:.3f}'.format(
+                        epoch, sum(err_tr)/len(err_tr), sum(err_te)/len(err_te)))
 
                 for m in mods:
                     m.train(False)
@@ -310,6 +311,11 @@ if __name__ == "__main__":
                         help="Turns off the connection between the horizontal and vertical stack in the gated layer",
                         action='store_true')
 
+    parser.add_argument("--skip-test",
+                        dest="skip_test",
+                        help="Skips evaluation on the test set (but still takes a sample).",
+                        action='store_true')
+
     parser.add_argument("-e", "--epochs",
                         dest="epochs",
                         help="Number of epochs.",
@@ -317,7 +323,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--evaluate-every",
                         dest="eval_every",
-                        help="Run an exaluation/sample every n epochs.",
+                        help="Run an evaluation/sample every n epochs.",
                         default=1, type=int)
 
     parser.add_argument("-k", "--kernel_size",
