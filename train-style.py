@@ -74,6 +74,17 @@ class StyleEncoder(nn.Module):
         self.tonoise4 = nn.Conv2d(c4, 2*c4, kernel_size=1, padding=0)
         self.tonoise5 = nn.Conv2d(c5, 2*c5, kernel_size=1, padding=0)
 
+        self.unmapping = nn.Sequential(
+            nn.Linear(zs*2, zs*2), nn.ReLU(),
+            nn.Linear(zs*2, zs*2), nn.ReLU(),
+            nn.Linear(zs*2, zs*2), nn.ReLU(),
+            nn.Linear(zs*2, zs*2), nn.ReLU(),
+            nn.Linear(zs*2, zs*2), nn.ReLU(),
+            nn.Linear(zs*2, zs*2), nn.ReLU(),
+            nn.Linear(zs*2, zs*2), nn.ReLU(),
+            nn.Linear(zs*2, zs*2), nn.ReLU()
+        )
+
     def forward(self, x0):
 
         b = x0.size(0)
@@ -110,6 +121,8 @@ class StyleEncoder(nn.Module):
             z4[:, :, None],
             z5[:, :, None]], dim=2)
         z = self.affinez(zbatch.view(b, -1))
+
+        z = self.unmapping(z)
 
         return z, n0, n1, n2, n3, n4, n5
 
@@ -154,7 +167,20 @@ class StyleDecoder(nn.Module):
         else:
             raise Exception('Output distribution {} not recognized'.format(dist))
 
+        self.mapping = nn.Sequential(
+            nn.Linear(zs, zs), nn.ReLU(),
+            nn.Linear(zs, zs), nn.ReLU(),
+            nn.Linear(zs, zs), nn.ReLU(),
+            nn.Linear(zs, zs), nn.ReLU(),
+            nn.Linear(zs, zs), nn.ReLU(),
+            nn.Linear(zs, zs), nn.ReLU(),
+            nn.Linear(zs, zs), nn.ReLU(),
+            nn.Linear(zs, zs), nn.ReLU()
+        )
+
     def forward(self, z, n0, n1, n2, n3, n4, n5):
+
+        z = self.mapping(z)
 
         z5 = self.affine5(z).view(*n5.size())
         x5 = torch.cat([z5, n5], dim=1)
