@@ -289,12 +289,10 @@ def go(arg):
     else:
         raise Exception('Task {} not recognized.'.format(arg.task))
 
-    channels = (8, 16, 32, 64, 128)
-
     zs = arg.latent_size
 
-    encoder = StyleEncoder((C, H, W), channels, zs=zs, k=arg.kernel_size, unmapping=arg.mapping_layers, batch_norm=arg.batch_norm)
-    decoder = StyleDecoder((C, H, W), channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm)
+    encoder = StyleEncoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, unmapping=arg.mapping_layers, batch_norm=arg.batch_norm)
+    decoder = StyleDecoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm)
 
     optimizer = Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=arg.lr)
 
@@ -502,6 +500,13 @@ if __name__ == "__main__":
                         dest="epochs",
                         help="Number of epochs.",
                         default=150, type=int)
+
+    parser.add_argument("-c", "--channels",
+                        dest="channels",
+                        help="Number of channels per block (list of 5 integers).",
+                        nargs=5,
+                        default=[32, 64, 128, 256, 512],
+                        type=int)
 
     parser.add_argument("--skip-test",
                         dest="skip_test",
