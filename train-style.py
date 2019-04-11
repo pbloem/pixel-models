@@ -353,6 +353,22 @@ def go(arg):
             n4sample = util.sample_image(n4)
             n5sample = util.sample_image(n5)
 
+            cz, c0, c1, c2, c3, c4, c5 = arg.cut
+            if cz:
+                zsample = zsample * 0
+            if c0:
+                n0sample = n0sample * 0
+            if c1:
+                n1sample = n1sample * 0
+            if c2:
+                n2sample = n2sample * 0
+            if c3:
+                n3sample = n3sample * 0
+            if c4:
+                n4sample = n4sample * 0
+            if c5:
+                n5sample = n5sample * 0
+
             # -- decoding
             xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample)
 
@@ -527,6 +543,13 @@ if __name__ == "__main__":
                         nargs=8,
                         type=float,
                         default=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+
+    parser.add_argument('--cut',
+                        dest='cut',
+                        help="Whether to cut a particular connection.",
+                        nargs=7,
+                        type=float,
+                        default=[False, False, False, False, False, False, False])
 
     parser.add_argument("--limit",
                         dest="limit",
