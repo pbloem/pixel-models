@@ -184,7 +184,7 @@ class Block(nn.Module):
                 layers.append(nn.Conv2d(channels, channels, kernel_size=kernel_size, padding=padding, bias=not batch_norm))
 
             if batch_norm:
-                layers.append(module=nn.BatchNorm2d(channels))
+                layers.append(nn.BatchNorm2d(channels))
 
             layers.append(nn.ReLU())
 
