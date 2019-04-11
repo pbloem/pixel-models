@@ -445,15 +445,15 @@ def go(arg):
         # sample 6x12 images
         b = 6 * 12
 
-        zrand  = torch.randn(b, zs, device=DV)
-        n0rand = torch.randn(b, C, H//2, W//2, device=DV)
-        n1rand = torch.randn(b, arg.channels[0], H//4, W//4, device=DV)
-        n2rand = torch.randn(b, arg.channels[1], H//8, W//8, device=DV)
-        n3rand = torch.randn(b, arg.channels[2], H//16, W//16, device=DV)
-        n4rand = torch.randn(b, arg.channels[3], H//32, W//32, device=DV)
-        n5rand = torch.randn(b, arg.channels[4], H//64, W//64, device=DV)
+        zrand  = torch.randn(b, zs, device='cpu')
+        n0rand = torch.randn(b, C, H//2, W//2, device='cpu')
+        n1rand = torch.randn(b, arg.channels[0], H//4, W//4, device='cpu')
+        n2rand = torch.randn(b, arg.channels[1], H//8, W//8, device='cpu')
+        n3rand = torch.randn(b, arg.channels[2], H//16, W//16, device='cpu')
+        n4rand = torch.randn(b, arg.channels[3], H//32, W//32, device='cpu')
+        n5rand = torch.randn(b, arg.channels[4], H//64, W//64, device='cpu')
 
-        sample = decoder(zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand).clamp(0, 1)[:, :C, :, :]
+        sample = util.batchedn((zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
         # reconstruct 6x12 images from the testset
         input = util.readn(testloader, n=6*12)
@@ -474,13 +474,13 @@ def go(arg):
         n5sample = util.sample_image(n5)
 
         # -- decoding
-        xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample).clamp(0, 1)[:, :C, :, :]
+        xout = util.batchedn((zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
         # -- mix the latent vector with random noise
-        mixout = decoder(zsample, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand).clamp(0, 1)[:, :C, :, :]
+        mixout = util.batchedn((zsample, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
         # -- mix the a random vector with the sample noise
-        mixout2 = decoder(zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample).clamp(0, 1)[:, :C, :, :]
+        mixout2 = util.batchedn((zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
         images = torch.cat([sample, input, xout, mixout, mixout2], dim=0)
 

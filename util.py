@@ -486,4 +486,36 @@ def batched(input, model, batch_size, cuda=torch.cuda.is_available()):
 
     return torch.cat(out_batches, dim=0)
 
+def batchedn(input, model, batch_size, cuda=torch.cuda.is_available()):
+    """
+    Performs inference in batches. Input and output are non-variable, non-gpu tensors.
 
+    :param input: A tuple
+    :param model:
+    :param batch_size:
+    :param cuda:
+    :return:
+    """
+    n = input[0].size(0)
+
+    out_batches = []
+
+    for fr in range(0, n, batch_size):
+        to = min(n, fr + batch_size)
+
+        batches = []
+        for e in input:
+            batch = e[fr:to]
+
+            if cuda:
+                batch = batch.cuda()
+            batch = Variable(batch)
+
+            batches.append(batch)
+
+        out_batches.append(model(*batches).cpu().data)
+
+        del batches
+
+
+    return torch.cat(out_batches, dim=0)
