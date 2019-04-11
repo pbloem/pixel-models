@@ -447,11 +447,11 @@ def go(arg):
 
         zrand  = torch.randn(b, zs, device=DV)
         n0rand = torch.randn(b, C, H//2, W//2, device=DV)
-        n1rand = torch.randn(b, channels[0], H//4, W//4, device=DV)
-        n2rand = torch.randn(b, channels[1], H//8, W//8, device=DV)
-        n3rand = torch.randn(b, channels[2], H//16, W//16, device=DV)
-        n4rand = torch.randn(b, channels[3], H//32, W//32, device=DV)
-        n5rand = torch.randn(b, channels[4], H//64, W//64, device=DV)
+        n1rand = torch.randn(b, arg.channels[0], H//4, W//4, device=DV)
+        n2rand = torch.randn(b, arg.channels[1], H//8, W//8, device=DV)
+        n3rand = torch.randn(b, arg.channels[2], H//16, W//16, device=DV)
+        n4rand = torch.randn(b, arg.channels[3], H//32, W//32, device=DV)
+        n5rand = torch.randn(b, arg.channels[4], H//64, W//64, device=DV)
 
         sample = decoder(zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand).clamp(0, 1)[:, :C, :, :]
 
