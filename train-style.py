@@ -43,18 +43,18 @@ def standard(b, c, h, w):
 
 class StyleEncoder(nn.Module):
 
-    def __init__(self, in_size, channels, zs=256, k=3, unmapping=3):
+    def __init__(self, in_size, channels, zs=256, k=3, unmapping=3, batch_norm=False):
         super().__init__()
 
         c, h, w = in_size
         c1, c2, c3, c4, c5 = channels
 
         # resnet blocks
-        self.block1 = util.Block(c, c1, kernel_size=k)
-        self.block2 = util.Block(c1, c2, kernel_size=k)
-        self.block3 = util.Block(c2, c3, kernel_size=k)
-        self.block4 = util.Block(c3, c4, kernel_size=k)
-        self.block5 = util.Block(c4, c5, kernel_size=k)
+        self.block1 = util.Block(c, c1, kernel_size=k, batch_norm=batch_norm)
+        self.block2 = util.Block(c1, c2, kernel_size=k, batch_norm=batch_norm)
+        self.block3 = util.Block(c2, c3, kernel_size=k, batch_norm=batch_norm)
+        self.block4 = util.Block(c3, c4, kernel_size=k, batch_norm=batch_norm)
+        self.block5 = util.Block(c4, c5, kernel_size=k, batch_norm=batch_norm)
 
         # affine mappings to distribution on latent space
         self.affine0 = nn.Linear(util.prod(in_size), 2 * zs)
@@ -130,7 +130,7 @@ class StyleEncoder(nn.Module):
 
 class StyleDecoder(nn.Module):
 
-    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian', mapping=3):
+    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian', mapping=3, batch_norm=False):
         super().__init__()
 
         self.out_size = out_size
@@ -139,11 +139,11 @@ class StyleDecoder(nn.Module):
         c1, c2, c3, c4, c5 = channels
 
         # resnet blocks
-        self.block5 = util.Block(c5*2, c4, kernel_size=k, deconv=True)
-        self.block4 = util.Block(c4*3, c3, kernel_size=k, deconv=True)
-        self.block3 = util.Block(c3*3, c2, kernel_size=k, deconv=True)
-        self.block2 = util.Block(c2*3, c1, kernel_size=k, deconv=True)
-        self.block1 = util.Block(c1*3, c,  kernel_size=k, deconv=True)
+        self.block5 = util.Block(c5*2, c4, kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block4 = util.Block(c4*3, c3, kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block3 = util.Block(c3*3, c2, kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block2 = util.Block(c2*3, c1, kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block1 = util.Block(c1*3, c,  kernel_size=k, deconv=True, batch_norm=batch_norm)
 
         # affine mappings from latent space sample
         self.affine5 = nn.Linear(zs, util.prod((c5, h//32, w//32)))
@@ -293,8 +293,8 @@ def go(arg):
 
     zs = arg.latent_size
 
-    encoder = StyleEncoder((C, H, W), channels, zs=zs, k=arg.kernel_size, unmapping=arg.mapping_layers)
-    decoder = StyleDecoder((C, H, W), channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers)
+    encoder = StyleEncoder((C, H, W), channels, zs=zs, k=arg.kernel_size, unmapping=arg.mapping_layers, batch_norm=arg.batch_norm)
+    decoder = StyleDecoder((C, H, W), channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm)
 
     optimizer = Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=arg.lr)
 
@@ -508,6 +508,11 @@ if __name__ == "__main__":
                         help="Skips evaluation on the test set (but still takes a sample).",
                         action='store_true')
 
+    parser.add_argument("--batch-norm",
+                        dest="batch_norm",
+                        help="Adds batch normalization after each block.",
+                        action='store_true')
+
     parser.add_argument("--evaluate-every",
                         dest="eval_every",
                         help="Run an exaluation/sample every n epochs.",
@@ -517,6 +522,7 @@ if __name__ == "__main__":
                         dest="kernel_size",
                         help="Size of convolution kernel",
                         default=3, type=int)
+
     parser.add_argument("-b", "--batch-size",
                         dest="batch_size",
                         help="Size of the batches.",
