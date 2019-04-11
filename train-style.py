@@ -43,7 +43,7 @@ def standard(b, c, h, w):
 
 class StyleEncoder(nn.Module):
 
-    def __init__(self, in_size, channels, zs=256, k=3):
+    def __init__(self, in_size, channels, zs=256, k=3, unmapping=3):
         super().__init__()
 
         c, h, w = in_size
@@ -74,16 +74,11 @@ class StyleEncoder(nn.Module):
         self.tonoise4 = nn.Conv2d(c4, 2*c4, kernel_size=1, padding=0)
         self.tonoise5 = nn.Conv2d(c5, 2*c5, kernel_size=1, padding=0)
 
-        self.unmapping = nn.Sequential(
-            nn.Linear(zs*2, zs*2), nn.ReLU(),
-            nn.Linear(zs*2, zs*2), nn.ReLU(),
-            nn.Linear(zs*2, zs*2), nn.ReLU(),
-            nn.Linear(zs*2, zs*2), nn.ReLU(),
-            nn.Linear(zs*2, zs*2), nn.ReLU(),
-            nn.Linear(zs*2, zs*2), nn.ReLU(),
-            nn.Linear(zs*2, zs*2), nn.ReLU(),
-            nn.Linear(zs*2, zs*2), nn.ReLU()
-        )
+        um = []
+        for _ in range(unmapping):
+            um.append(nn.ReLU())
+            um.append(nn.Linear(zs*2, zs*2))
+        self.unmapping = nn.Sequential(*um)
 
     def forward(self, x0):
 
@@ -120,8 +115,8 @@ class StyleEncoder(nn.Module):
             z3[:, :, None],
             z4[:, :, None],
             z5[:, :, None]], dim=2)
-        z = self.affinez(zbatch.view(b, -1))
 
+        z = self.affinez(zbatch.view(b, -1))
         z = self.unmapping(z)
 
         n0 = F.max_pool2d(n0, 2)
@@ -135,7 +130,7 @@ class StyleEncoder(nn.Module):
 
 class StyleDecoder(nn.Module):
 
-    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian'):
+    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian', mapping=3):
         super().__init__()
 
         self.out_size = out_size
@@ -174,16 +169,11 @@ class StyleDecoder(nn.Module):
         else:
             raise Exception('Output distribution {} not recognized'.format(dist))
 
-        self.mapping = nn.Sequential(
-            nn.Linear(zs, zs), nn.ReLU(),
-            nn.Linear(zs, zs), nn.ReLU(),
-            nn.Linear(zs, zs), nn.ReLU(),
-            nn.Linear(zs, zs), nn.ReLU(),
-            nn.Linear(zs, zs), nn.ReLU(),
-            nn.Linear(zs, zs), nn.ReLU(),
-            nn.Linear(zs, zs), nn.ReLU(),
-            nn.Linear(zs, zs), nn.ReLU()
-        )
+        m = []
+        for _ in range(mapping):
+            m.append(nn.Linear(zs, zs))
+            m.append(nn.ReLU())
+        self.mapping = nn.Sequential(*m)
 
     def forward(self, z, n0, n1, n2, n3, n4, n5):
 
@@ -303,8 +293,8 @@ def go(arg):
 
     zs = arg.latent_size
 
-    encoder = StyleEncoder((C, H, W), channels, zs=zs, k=arg.kernel_size)
-    decoder = StyleDecoder((C, H, W), channels, zs=zs, k=arg.kernel_size)
+    encoder = StyleEncoder((C, H, W), channels, zs=zs, k=arg.kernel_size, unmapping=arg.mapping_layers)
+    decoder = StyleDecoder((C, H, W), channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers)
 
     optimizer = Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=arg.lr)
 
@@ -555,6 +545,11 @@ if __name__ == "__main__":
                         dest="limit",
                         help="Limit on the number of instances seen per epoch (for debugging).",
                         default=None, type=int)
+
+    parser.add_argument("--mapping-layers",
+                        dest="mapping_layers",
+                        help="Number of layers mapping from and to the distribution on z.",
+                        default=3, type=int)
 
     parser.add_argument("-l", "--learn-rate",
                         dest="lr",
