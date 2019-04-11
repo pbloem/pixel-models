@@ -124,6 +124,13 @@ class StyleEncoder(nn.Module):
 
         z = self.unmapping(z)
 
+        n0 = F.max_pool2d(n0, 2)
+        n1 = F.max_pool2d(n1, 2)
+        n2 = F.max_pool2d(n2, 2)
+        n3 = F.max_pool2d(n3, 2)
+        n4 = F.max_pool2d(n4, 2)
+        n5 = F.max_pool2d(n5, 2)
+
         return z, n0, n1, n2, n3, n4, n5
 
 class StyleDecoder(nn.Module):
@@ -179,6 +186,14 @@ class StyleDecoder(nn.Module):
         )
 
     def forward(self, z, n0, n1, n2, n3, n4, n5):
+
+
+        n5 = F.upsample_bilinear(n5, scale_factor=2)
+        n4 = F.upsample_bilinear(n4, scale_factor=2)
+        n3 = F.upsample_bilinear(n3, scale_factor=2)
+        n2 = F.upsample_bilinear(n2, scale_factor=2)
+        n1 = F.upsample_bilinear(n1, scale_factor=2)
+        n0 = F.upsample_bilinear(n0, scale_factor=2)
 
         z = self.mapping(z)
 
@@ -427,12 +442,12 @@ def go(arg):
         b = 6 * 12
 
         zrand  = torch.randn(b, zs, device=DV)
-        n0rand = torch.randn(b, C, H, W, device=DV)
-        n1rand = torch.randn(b, channels[0], H//2, W//2, device=DV)
-        n2rand = torch.randn(b, channels[1], H//4, W//4, device=DV)
-        n3rand = torch.randn(b, channels[2], H//8, W//8, device=DV)
-        n4rand = torch.randn(b, channels[3], H//16, W//16, device=DV)
-        n5rand = torch.randn(b, channels[4], H//32, W//32, device=DV)
+        n0rand = torch.randn(b, C, H//2, W//2, device=DV)
+        n1rand = torch.randn(b, channels[0], H//4, W//4, device=DV)
+        n2rand = torch.randn(b, channels[1], H//8, W//8, device=DV)
+        n3rand = torch.randn(b, channels[2], H//16, W//16, device=DV)
+        n4rand = torch.randn(b, channels[3], H//32, W//32, device=DV)
+        n5rand = torch.randn(b, channels[4], H//64, W//64, device=DV)
 
         sample = decoder(zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand).clamp(0, 1)[:, :C, :, :]
 
