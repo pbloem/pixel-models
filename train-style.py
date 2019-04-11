@@ -482,7 +482,7 @@ def go(arg):
         # -- mix the a random vector with the sample noise
         mixout2 = util.batchedn((zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
-        images = torch.cat([sample, input, xout, mixout, mixout2], dim=0)
+        images = torch.cat([sample, input.cpu(), xout, mixout, mixout2], dim=0)
 
         utils.save_image(images, 'images_{:02d}.png'.format(epoch), nrow=24, padding=2)
 
