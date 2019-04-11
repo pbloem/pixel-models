@@ -65,7 +65,7 @@ def sample(zmean, zlsig, eps=None):
 
     if eps is None:
         eps = torch.randn(b, l)
-        if zmean.is_cuda():
+        if zmean.is_cuda:
             eps = eps.cuda()
         eps = Variable(eps)
 
@@ -93,7 +93,7 @@ def sample_image(z, eps=None):
 
     if eps is None:
         eps = torch.randn(b, c//2, h, w).view(b, -1)
-        if z.is_cuda():
+        if z.is_cuda:
             eps = eps.cuda()
         eps = Variable(eps)
 
