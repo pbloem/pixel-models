@@ -548,7 +548,7 @@ if __name__ == "__main__":
                         dest='cut',
                         help="Whether to cut a particular connection.",
                         nargs=7,
-                        type=float,
+                        type=bool,
                         default=[False, False, False, False, False, False, False])
 
     parser.add_argument("--limit",
