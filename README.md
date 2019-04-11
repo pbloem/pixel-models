@@ -136,5 +136,5 @@ codelength in _nats_. For _bits_ (the standard evaluation metric in these papers
 
 # Acknowledgements
 
-Development of this library was funded through NWO KIEM project [Score!](https://pbloeb.github.io/score) (grant number
+Development of this library was funded through NWO KIEM project [Score!](https://pbloem.github.io/score) (grant number
  314-98-121). Experiments were run on the [DAS5 cluster](https://www.cs.vu.nl/das5/gpu.shtml).
