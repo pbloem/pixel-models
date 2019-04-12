@@ -180,7 +180,7 @@ class StyleDecoder(nn.Module):
     def forward(self, z, n0, n1, n2, n3, n4, n5):
 
         if self.cuts is not None:
-            cz, c0, c1, c2, c3, c4, c5 = self.cuts
+            [cz, c0, c1, c2, c3, c4, c5] = [bool(b) for b in self.cuts]
             if cz:
                 z = z * 0
             if c0:
@@ -310,7 +310,7 @@ def go(arg):
     zs = arg.latent_size
 
     encoder = StyleEncoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, unmapping=arg.mapping_layers, batch_norm=arg.batch_norm)
-    decoder = StyleDecoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm, cuts=arg.cuts)
+    decoder = StyleDecoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm, cuts=arg.cut)
 
     optimizer = Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=arg.lr)
 
@@ -551,8 +551,8 @@ if __name__ == "__main__":
                         dest='cut',
                         help="Whether to cut a particular connection.",
                         nargs=7,
-                        type=bool,
-                        default=[False, False, False, False, False, False, False])
+                        type=str,
+                        default=['False', 'False', 'False', 'False', 'False', 'False', 'False'])
 
     parser.add_argument("--limit",
                         dest="limit",
