@@ -130,7 +130,7 @@ class StyleEncoder(nn.Module):
 
 class StyleDecoder(nn.Module):
 
-    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian', mapping=3, batch_norm=False):
+    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian', mapping=3, batch_norm=False, cuts=None):
         super().__init__()
 
         self.out_size = out_size
@@ -175,8 +175,26 @@ class StyleDecoder(nn.Module):
             m.append(nn.ReLU())
         self.mapping = nn.Sequential(*m)
 
+        self.cuts = cuts
+
     def forward(self, z, n0, n1, n2, n3, n4, n5):
 
+        if self.cuts is not None:
+            cz, c0, c1, c2, c3, c4, c5 = self.cuts
+            if cz:
+                z = z * 0
+            if c0:
+                n0 = n0 * 0
+            if c1:
+                n1 = n1 * 0
+            if c2:
+                n2 = n2 * 0
+            if c3:
+                n3 = n3 * 0
+            if c4:
+                n4 = n4 * 0
+            if c5:
+                n5 = n5 * 0
 
         n5 = F.upsample_bilinear(n5, scale_factor=2)
         n4 = F.upsample_bilinear(n4, scale_factor=2)
@@ -292,7 +310,7 @@ def go(arg):
     zs = arg.latent_size
 
     encoder = StyleEncoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, unmapping=arg.mapping_layers, batch_norm=arg.batch_norm)
-    decoder = StyleDecoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm)
+    decoder = StyleDecoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm, cuts=arg.cuts)
 
     optimizer = Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=arg.lr)
 
@@ -340,22 +358,6 @@ def go(arg):
             n3sample = util.sample_image(n3)
             n4sample = util.sample_image(n4)
             n5sample = util.sample_image(n5)
-
-            cz, c0, c1, c2, c3, c4, c5 = arg.cut
-            if cz:
-                zsample = zsample * 0
-            if c0:
-                n0sample = n0sample * 0
-            if c1:
-                n1sample = n1sample * 0
-            if c2:
-                n2sample = n2sample * 0
-            if c3:
-                n3sample = n3sample * 0
-            if c4:
-                n4sample = n4sample * 0
-            if c5:
-                n5sample = n5sample * 0
 
             # -- decoding
             xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample)
