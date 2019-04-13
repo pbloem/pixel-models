@@ -107,7 +107,7 @@ class StyleEncoder(nn.Module):
         z5 = self.affine5(x5.view(b, -1))
         n5 = self.tonoise5(x5)
 
-        # average the z vectors
+        # combine the z vectors
         zbatch = torch.cat([
             z0[:, :, None],
             z1[:, :, None],
@@ -119,18 +119,11 @@ class StyleEncoder(nn.Module):
         z = self.affinez(zbatch.view(b, -1))
         z = self.unmapping(z)
 
-        n0 = F.max_pool2d(n0, 2)
-        n1 = F.max_pool2d(n1, 2)
-        n2 = F.max_pool2d(n2, 2)
-        n3 = F.max_pool2d(n3, 2)
-        n4 = F.max_pool2d(n4, 2)
-        n5 = F.max_pool2d(n5, 2)
-
         return z, n0, n1, n2, n3, n4, n5
 
 class StyleDecoder(nn.Module):
 
-    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian', mapping=3, batch_norm=False, cuts=None):
+    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian', mapping=3, batch_norm=False, dropouts=None):
         super().__init__()
 
         self.out_size = out_size
@@ -164,7 +157,7 @@ class StyleDecoder(nn.Module):
         # mapping to distribution on image space
         if dist in ['gaussian','beta']:
             self.conv0 = nn.Conv2d(c*3, c*2, kernel_size=1)
-        elif dist == 'bernoulli':
+        elif dist == 'bernoulli': # binary xent loss
             self.conv0 = nn.Conv2d(c * 3, c, kernel_size=1)
         else:
             raise Exception('Output distribution {} not recognized'.format(dist))
@@ -175,33 +168,19 @@ class StyleDecoder(nn.Module):
             m.append(nn.ReLU())
         self.mapping = nn.Sequential(*m)
 
-        self.cuts = cuts
+        self.dropouts = dropouts
 
     def forward(self, z, n0, n1, n2, n3, n4, n5):
 
-        if self.cuts is not None:
-            [cz, c0, c1, c2, c3, c4, c5] = [util.bool(b) for b in self.cuts]
-            if cz:
-                z = z * 0
-            if c0:
-                n0 = n0 * 0
-            if c1:
-                n1 = n1 * 0
-            if c2:
-                n2 = n2 * 0
-            if c3:
-                n3 = n3 * 0
-            if c4:
-                n4 = n4 * 0
-            if c5:
-                n5 = n5 * 0
-
-        n5 = F.upsample_bilinear(n5, scale_factor=2)
-        n4 = F.upsample_bilinear(n4, scale_factor=2)
-        n3 = F.upsample_bilinear(n3, scale_factor=2)
-        n2 = F.upsample_bilinear(n2, scale_factor=2)
-        n1 = F.upsample_bilinear(n1, scale_factor=2)
-        n0 = F.upsample_bilinear(n0, scale_factor=2)
+        if self.dropouts is not None:
+            dz, d0, d1, d2, d3, d4, d5 = self.dropouts
+            z = F.dropout(z, p=dz, training=self.training)
+            n0 = F.dropout(n0, p=d0, training=self.training)
+            n1 = F.dropout(n1, p=d1, training=self.training)
+            n2 = F.dropout(n2, p=d2, training=self.training)
+            n3 = F.dropout(n3, p=d3, training=self.training)
+            n4 = F.dropout(n4, p=d4, training=self.training)
+            n5 = F.dropout(n5, p=d5, training=self.training)
 
         z = self.mapping(z)
 
@@ -310,7 +289,7 @@ def go(arg):
     zs = arg.latent_size
 
     encoder = StyleEncoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, unmapping=arg.mapping_layers, batch_norm=arg.batch_norm)
-    decoder = StyleDecoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm, cuts=arg.cut)
+    decoder = StyleDecoder((C, H, W), arg.channels, zs=zs, k=arg.kernel_size, mapping=arg.mapping_layers, batch_norm=arg.batch_norm, dropouts=arg.dropouts)
 
     optimizer = Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=arg.lr)
 
@@ -448,12 +427,12 @@ def go(arg):
         b = 6 * 12
 
         zrand  = torch.randn(b, zs, device='cpu')
-        n0rand = torch.randn(b, C, H//2, W//2, device='cpu')
-        n1rand = torch.randn(b, arg.channels[0], H//4, W//4, device='cpu')
-        n2rand = torch.randn(b, arg.channels[1], H//8, W//8, device='cpu')
-        n3rand = torch.randn(b, arg.channels[2], H//16, W//16, device='cpu')
-        n4rand = torch.randn(b, arg.channels[3], H//32, W//32, device='cpu')
-        n5rand = torch.randn(b, arg.channels[4], H//64, W//64, device='cpu')
+        n0rand = torch.randn(b, C, H, W, device='cpu')
+        n1rand = torch.randn(b, arg.channels[0], H//2, W//2, device='cpu')
+        n2rand = torch.randn(b, arg.channels[1], H//4, W//4, device='cpu')
+        n3rand = torch.randn(b, arg.channels[2], H//8, W//8, device='cpu')
+        n4rand = torch.randn(b, arg.channels[3], H//16, W//16, device='cpu')
+        n5rand = torch.randn(b, arg.channels[4], H//32, W//32, device='cpu')
 
         sample = util.batchedn((zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
@@ -547,12 +526,12 @@ if __name__ == "__main__":
                         type=float,
                         default=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 
-    parser.add_argument('--cut',
-                        dest='cut',
-                        help="Whether to cut a particular connection.",
+    parser.add_argument('--dropouts',
+                        dest='dropouts',
+                        help="Dropout parameters for the various decoder inputs.",
                         nargs=7,
-                        type=str,
-                        default=['False', 'False', 'False', 'False', 'False', 'False', 'False'])
+                        type=float,
+                        default=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     parser.add_argument("--limit",
                         dest="limit",
