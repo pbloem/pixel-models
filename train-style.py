@@ -180,7 +180,7 @@ class StyleDecoder(nn.Module):
     def forward(self, z, n0, n1, n2, n3, n4, n5):
 
         if self.cuts is not None:
-            [cz, c0, c1, c2, c3, c4, c5] = [bool(b) for b in self.cuts]
+            [cz, c0, c1, c2, c3, c4, c5] = [util.bool(b) for b in self.cuts]
             if cz:
                 z = z * 0
             if c0:

@@ -558,3 +558,6 @@ def batchedn(input, model, batch_size, cuda=torch.cuda.is_available()):
 
 
     return torch.cat(out_batches, dim=0)
+
+def bool(s:str):
+    return s.lower() in ['true', '1', 't', 'y', 'yes']
