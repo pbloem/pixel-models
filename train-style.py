@@ -41,6 +41,22 @@ def standard(b, c, h, w):
         res = res.cuda()
     return res
 
+def adain(y, x):
+    """
+    Adaptive instance normalization
+    :param y:
+    :param x:
+    :return:
+    """
+    b, c, h, w = y.size()
+
+    ys = y[:, :c//2, :, :]
+    yb = y[:, c//2:, :, :]
+
+    x = F.instance_norm(x)
+
+    return ys * x + yb
+
 class StyleEncoder(nn.Module):
 
     def __init__(self, in_size, channels, zs=256, k=3, unmapping=3, batch_norm=False):
@@ -50,7 +66,7 @@ class StyleEncoder(nn.Module):
         c1, c2, c3, c4, c5 = channels
 
         # resnet blocks
-        self.block1 = util.Block(c, c1, kernel_size=k, batch_norm=batch_norm)
+        self.block1 = util.Block(c,  c1, kernel_size=k, batch_norm=batch_norm)
         self.block2 = util.Block(c1, c2, kernel_size=k, batch_norm=batch_norm)
         self.block3 = util.Block(c2, c3, kernel_size=k, batch_norm=batch_norm)
         self.block4 = util.Block(c3, c4, kernel_size=k, batch_norm=batch_norm)
@@ -67,12 +83,12 @@ class StyleEncoder(nn.Module):
         self.affinez = nn.Linear(12 * zs, 2 * zs)
 
         # 1x1 convolution to distribution on "noise space"
-        self.tonoise0 = nn.Conv2d(c,  2*c,  kernel_size=1, padding=0)
-        self.tonoise1 = nn.Conv2d(c1, 2*c1, kernel_size=1, padding=0)
-        self.tonoise2 = nn.Conv2d(c2, 2*c2, kernel_size=1, padding=0)
-        self.tonoise3 = nn.Conv2d(c3, 2*c3, kernel_size=1, padding=0)
-        self.tonoise4 = nn.Conv2d(c4, 2*c4, kernel_size=1, padding=0)
-        self.tonoise5 = nn.Conv2d(c5, 2*c5, kernel_size=1, padding=0)
+        self.tonoise0 = nn.Conv2d(c,  2,  kernel_size=1, padding=0)
+        self.tonoise1 = nn.Conv2d(c1, 2, kernel_size=1, padding=0)
+        self.tonoise2 = nn.Conv2d(c2, 2, kernel_size=1, padding=0)
+        self.tonoise3 = nn.Conv2d(c3, 2, kernel_size=1, padding=0)
+        self.tonoise4 = nn.Conv2d(c4, 2, kernel_size=1, padding=0)
+        self.tonoise5 = nn.Conv2d(c5, 2, kernel_size=1, padding=0)
 
         um = []
         for _ in range(unmapping):
@@ -128,37 +144,38 @@ class StyleDecoder(nn.Module):
 
         self.out_size = out_size
 
-        c, h, w = out_size
-        c1, c2, c3, c4, c5 = channels
+        c, h, w = self.out_size
+        self.channels = channels
+        c1, c2, c3, c4, c5 = self.channels
 
         # resnet blocks
-        self.block5 = util.Block(c5*2, c4, kernel_size=k, deconv=True, batch_norm=batch_norm)
-        self.block4 = util.Block(c4*3, c3, kernel_size=k, deconv=True, batch_norm=batch_norm)
-        self.block3 = util.Block(c3*3, c2, kernel_size=k, deconv=True, batch_norm=batch_norm)
-        self.block2 = util.Block(c2*3, c1, kernel_size=k, deconv=True, batch_norm=batch_norm)
-        self.block1 = util.Block(c1*3, c,  kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block5 = util.Block(c5, c4, kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block4 = util.Block(c4, c3, kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block3 = util.Block(c3, c2, kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block2 = util.Block(c2, c1, kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block1 = util.Block(c1, c,  kernel_size=k, deconv=True, batch_norm=batch_norm)
 
         # affine mappings from latent space sample
-        self.affine5 = nn.Linear(zs, util.prod((c5, h//32, w//32)))
-        self.affine4 = nn.Linear(zs, util.prod((c4, h//16, w//16)))
-        self.affine3 = nn.Linear(zs, util.prod((c3, h//8, w//8)))
-        self.affine2 = nn.Linear(zs, util.prod((c2, h//4, w//4)))
-        self.affine1 = nn.Linear(zs, util.prod((c1, h//2, w//2)))
-        self.affine0 = nn.Linear(zs, util.prod(out_size))
+        self.affine5 = nn.Linear(zs, 2 * util.prod((c5, h//32, w//32)))
+        self.affine4 = nn.Linear(zs, 2 * util.prod((c4, h//16, w//16)))
+        self.affine3 = nn.Linear(zs, 2 * util.prod((c3, h//8, w//8)))
+        self.affine2 = nn.Linear(zs, 2 * util.prod((c2, h//4, w//4)))
+        self.affine1 = nn.Linear(zs, 2 * util.prod((c1, h//2, w//2)))
+        self.affine0 = nn.Linear(zs, 2 * util.prod(out_size))
 
         # 1x1 convolution from "noise space" sample
-        self.tonoise5 = nn.Conv2d(c5, 2*c5, kernel_size=1, padding=0)
-        self.tonoise4 = nn.Conv2d(c4, 2*c4, kernel_size=1, padding=0)
-        self.tonoise3 = nn.Conv2d(c3, 2*c3, kernel_size=1, padding=0)
-        self.tonoise2 = nn.Conv2d(c2, 2*c2, kernel_size=1, padding=0)
-        self.tonoise1 = nn.Conv2d(c1, 2*c1, kernel_size=1, padding=0)
-        self.tonoise0 = nn.Conv2d(c,  2*c,  kernel_size=1, padding=0)
+        self.tonoise5 = nn.Conv2d(1, c5, kernel_size=1, padding=0)
+        self.tonoise4 = nn.Conv2d(1, c4, kernel_size=1, padding=0)
+        self.tonoise3 = nn.Conv2d(1, c3, kernel_size=1, padding=0)
+        self.tonoise2 = nn.Conv2d(1, c2, kernel_size=1, padding=0)
+        self.tonoise1 = nn.Conv2d(1, c1, kernel_size=1, padding=0)
+        self.tonoise0 = nn.Conv2d(1, c,  kernel_size=1, padding=0)
 
         # mapping to distribution on image space
         if dist in ['gaussian','beta']:
-            self.conv0 = nn.Conv2d(c*3, c*2, kernel_size=1)
+            self.conv0 = nn.Conv2d(c, c*2, kernel_size=1)
         elif dist == 'bernoulli': # binary xent loss
-            self.conv0 = nn.Conv2d(c * 3, c, kernel_size=1)
+            self.conv0 = nn.Conv2d(c, c, kernel_size=1)
         else:
             raise Exception('Output distribution {} not recognized'.format(dist))
 
@@ -170,7 +187,13 @@ class StyleDecoder(nn.Module):
 
         self.dropouts = dropouts
 
+        # constant, learnable input
+        self.x5 = nn.Parameter(torch.randn(c5, h//32, w//32))
+
     def forward(self, z, n0, n1, n2, n3, n4, n5):
+
+        c, h, w = self.out_size
+        c1, c2, c3, c4, c5 = self.channels
 
         if self.dropouts is not None:
             dz, d0, d1, d2, d3, d4, d5 = self.dropouts
@@ -184,28 +207,36 @@ class StyleDecoder(nn.Module):
 
         z = self.mapping(z)
 
-        z5 = self.affine5(z).view(*n5.size())
-        x5 = torch.cat([z5, n5], dim=1)
+        x5 = self.x5 + n5
+        z5 = self.affine5(z).view(-1, 2 * c5, h//32, w//32)
+
+        x5 = adain(z5, x5)
+
 
         x4 = F.upsample_bilinear(self.block5(x5), scale_factor=2)
-        z4 = self.affine4(z).view(*n4.size())
-        x4 = torch.cat([z4, n4, x4], dim=1)
+        x4 = x4 + n4
+        z4 = self.affine4(z).view(-1, 2 * c4, h//16, w//16)
+        x4 = adain(z4, x4)
 
         x3 = F.upsample_bilinear(self.block4(x4), scale_factor=2)
-        z3 = self.affine3(z).view(*n3.size())
-        x3 = torch.cat([z3, n3, x3], dim=1)
+        x3 = x3 + n3
+        z3 = self.affine3(z).view(-1, 2 * c3, h//8, w//8)
+        x3 = adain(z3, x3)
 
         x2 = F.upsample_bilinear(self.block3(x3), scale_factor=2)
-        z2 = self.affine2(z).view(*n2.size())
-        x2 = torch.cat([z2, n2, x2], dim=1)
+        x2 = x2 + n2
+        z2 = self.affine2(z).view(-1, 2 * c2, h//4, w//4)
+        x2 = adain(z2, x2)
 
         x1 = F.upsample_bilinear(self.block2(x2), scale_factor=2)
-        z1 = self.affine1(z).view(*n1.size())
-        x1 = torch.cat([z1, n1, x1], dim=1)
+        x1 = x1 + n1
+        z1 = self.affine1(z).view(-1, 2 * c1, h//2, w//2)
+        x1 = adain(z1, x1)
 
         x0 = F.upsample_bilinear(self.block1(x1), scale_factor=2)
-        z0 = self.affine0(z).view(*n0.size())
-        x0 = torch.cat([z0, n0, x0], dim=1)
+        x0 = x0 + n0
+        z0 = self.affine0(z).view(-1, 2 * c, h, w)
+        x0 = adain(z0, x0)
 
         x0 = self.conv0(x0)
 
@@ -369,103 +400,104 @@ def go(arg):
 
             optimizer.step()
 
-        err_te = []
-        encoder.train(False)
-        decoder.train(False)
+        with torch.no_grad():
+            err_te = []
+            encoder.train(False)
+            decoder.train(False)
 
-        if not arg.skip_test:
-            for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
-                if arg.limit is not None and i * arg.batch_size > arg.limit:
-                    break
+            if not arg.skip_test:
+                for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
+                    if arg.limit is not None and i * arg.batch_size > arg.limit:
+                        break
 
-                if torch.cuda.is_available():
-                    input = input.cuda()
+                    if torch.cuda.is_available():
+                        input = input.cuda()
 
-                input, target = Variable(input), Variable(input)
+                    input, target = Variable(input), Variable(input)
 
-                # -- encoding
-                z, n0, n1, n2, n3 = encoder(input)
+                    # -- encoding
+                    z, n0, n1, n2, n3 = encoder(input)
 
-                # -- compute KL losses
+                    # -- compute KL losses
 
-                zkl  = util.kl_loss(z[:, :zs], z[:, zs:])
-                n0kl = util.kl_loss_image(n0)
-                n1kl = util.kl_loss_image(n1)
-                n2kl = util.kl_loss_image(n2)
-                n3kl = util.kl_loss_image(n3)
-                n4kl = util.kl_loss_image(n4)
-                n5kl = util.kl_loss_image(n5)
+                    zkl  = util.kl_loss(z[:, :zs], z[:, zs:])
+                    n0kl = util.kl_loss_image(n0)
+                    n1kl = util.kl_loss_image(n1)
+                    n2kl = util.kl_loss_image(n2)
+                    n3kl = util.kl_loss_image(n3)
+                    n4kl = util.kl_loss_image(n4)
+                    n5kl = util.kl_loss_image(n5)
 
-                # -- take samples
-                zsample  = util.sample(z[:, :zs], z[:, zs:])
-                n0sample = util.sample_image(n0)
-                n1sample = util.sample_image(n1)
-                n2sample = util.sample_image(n2)
-                n3sample = util.sample_image(n3)
-                n4sample = util.sample_image(n4)
-                n5sample = util.sample_image(n5)
+                    # -- take samples
+                    zsample  = util.sample(z[:, :zs], z[:, zs:])
+                    n0sample = util.sample_image(n0)
+                    n1sample = util.sample_image(n1)
+                    n2sample = util.sample_image(n2)
+                    n3sample = util.sample_image(n3)
+                    n4sample = util.sample_image(n4)
+                    n5sample = util.sample_image(n5)
 
-                # -- decoding
-                xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample)
+                    # -- decoding
+                    xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample)
 
-                # Only Gaussian loss for now
-                m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
-                rec_loss = -m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
+                    # Only Gaussian loss for now
+                    m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
+                    rec_loss = -m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
 
-                loss = rec_loss + zkl + n0kl + n1kl + n2kl + n3kl + n4kl + n5kl
-                loss = loss.mean(dim=0)
+                    loss = rec_loss + zkl + n0kl + n1kl + n2kl + n3kl + n4kl + n5kl
+                    loss = loss.mean(dim=0)
 
-                err_te.append(loss.data.item())
+                    err_te.append(loss.data.item())
 
-            tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
-            print('epoch={:02}; test loss: {:.3f}'.format(
-                epoch, sum(err_te)/len(err_te)))
+                tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
+                print('epoch={:02}; test loss: {:.3f}'.format(
+                    epoch, sum(err_te)/len(err_te)))
 
-        # take some samples
+            # take some samples
 
-        # sample 6x12 images
-        b = 6 * 12
+            # sample 6x12 images
+            b = 6 * 12
 
-        zrand  = torch.randn(b, zs, device='cpu')
-        n0rand = torch.randn(b, C, H, W, device='cpu')
-        n1rand = torch.randn(b, arg.channels[0], H//2, W//2, device='cpu')
-        n2rand = torch.randn(b, arg.channels[1], H//4, W//4, device='cpu')
-        n3rand = torch.randn(b, arg.channels[2], H//8, W//8, device='cpu')
-        n4rand = torch.randn(b, arg.channels[3], H//16, W//16, device='cpu')
-        n5rand = torch.randn(b, arg.channels[4], H//32, W//32, device='cpu')
+            zrand  = torch.randn(b, zs, device='cpu')
+            n0rand = torch.randn(b, C, H, W, device='cpu')
+            n1rand = torch.randn(b, 1, H//2, W//2, device='cpu')
+            n2rand = torch.randn(b, 1, H//4, W//4, device='cpu')
+            n3rand = torch.randn(b, 1, H//8, W//8, device='cpu')
+            n4rand = torch.randn(b, 1, H//16, W//16, device='cpu')
+            n5rand = torch.randn(b, 1, H//32, W//32, device='cpu')
 
-        sample = util.batchedn((zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
+            sample = util.batchedn((zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
-        # reconstruct 6x12 images from the testset
-        input = util.readn(testloader, n=6*12)
-        if torch.cuda.is_available():
-            input = input.cuda()
-        input = Variable(input)
+            # reconstruct 6x12 images from the testset
+            input = util.readn(testloader, n=6*12)
+            if torch.cuda.is_available():
+                input = input.cuda()
+            input = Variable(input)
 
-        # -- encoding
-        z, n0, n1, n2, n3, n4, n5 = util.nbatched(input, encoder, batch_size=32)
+            # -- encoding
+            z, n0, n1, n2, n3, n4, n5 = util.nbatched(input, encoder, batch_size=32)
 
-        # -- take samples
-        zsample = util.sample(z[:, :zs], z[:, zs:])
-        n0sample = util.sample_image(n0)
-        n1sample = util.sample_image(n1)
-        n2sample = util.sample_image(n2)
-        n3sample = util.sample_image(n3)
-        n4sample = util.sample_image(n4)
-        n5sample = util.sample_image(n5)
+            # -- take samples
+            zsample = util.sample(z[:, :zs], z[:, zs:])
+            n0sample = util.sample_image(n0)
+            n1sample = util.sample_image(n1)
+            n2sample = util.sample_image(n2)
+            n3sample = util.sample_image(n3)
+            n4sample = util.sample_image(n4)
+            n5sample = util.sample_image(n5)
 
-        # -- decoding
-        xout = util.batchedn((zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
+            # -- decoding
+            xout = util.batchedn((zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
-        # -- mix the latent vector with random noise
-        mixout = util.batchedn((zsample, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
+            # -- mix the latent vector with random noise
+            mixout = util.batchedn((zsample, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
-        # -- mix the a random vector with the sample noise
-        mixout2 = util.batchedn((zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
+            # -- mix the a random vector with the sample noise
+            mixout2 = util.batchedn((zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
-        images = torch.cat([sample, input.cpu(), xout, mixout, mixout2], dim=0)
+            images = torch.cat([sample, input.cpu(), xout, mixout, mixout2], dim=0)
 
-        utils.save_image(images, 'images_{:02d}.png'.format(epoch), nrow=24, padding=2)
+            utils.save_image(images, 'images_{:02d}.png'.format(epoch), nrow=24, padding=2)
 
 if __name__ == "__main__":
 
@@ -531,7 +563,7 @@ if __name__ == "__main__":
                         help="Dropout parameters for the various decoder inputs.",
                         nargs=7,
                         type=float,
-                        default=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+                        default=None)
 
     parser.add_argument("--limit",
                         dest="limit",
