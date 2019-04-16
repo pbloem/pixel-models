@@ -197,13 +197,13 @@ class StyleDecoder(nn.Module):
 
         if self.dropouts is not None:
             dz, d0, d1, d2, d3, d4, d5 = self.dropouts
-            z = F.dropout(z, p=dz, training=self.training)
-            n0 = F.dropout(n0, p=d0, training=self.training)
-            n1 = F.dropout(n1, p=d1, training=self.training)
-            n2 = F.dropout(n2, p=d2, training=self.training)
-            n3 = F.dropout(n3, p=d3, training=self.training)
-            n4 = F.dropout(n4, p=d4, training=self.training)
-            n5 = F.dropout(n5, p=d5, training=self.training)
+            z = F.dropout(z, p=dz, training=True)
+            n0 = F.dropout(n0, p=d0, training=True)
+            n1 = F.dropout(n1, p=d1, training=True)
+            n2 = F.dropout(n2, p=d2, training=True)
+            n3 = F.dropout(n3, p=d3, training=True)
+            n4 = F.dropout(n4, p=d4, training=True)
+            n5 = F.dropout(n5, p=d5, training=True)
 
         z = self.mapping(z)
 
