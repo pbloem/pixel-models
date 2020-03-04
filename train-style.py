@@ -368,7 +368,7 @@ def go(arg):
 
             # m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
             # rec_loss = - m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
-            rec_loss = F.binary_cross_entropy(xout, input)
+            rec_loss = F.binary_cross_entropy(xout, input, reduction='none').view(b, -1).sum(dim=1)
 
             br, bz, b0, b1, b2, b3, b4, b5 = arg.betas
 
