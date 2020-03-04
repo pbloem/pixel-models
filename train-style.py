@@ -44,8 +44,8 @@ def standard(b, c, h, w):
 def adain(y, x):
     """
     Adaptive instance normalization
-    :param y:
-    :param x:
+    :param y: Parameters for the normalization
+    :param x: Input to normalize
     :return:
     """
     b, c, h, w = y.size()
@@ -83,7 +83,8 @@ class StyleEncoder(nn.Module):
         self.affinez = nn.Linear(12 * zs, 2 * zs)
 
         # 1x1 convolution to distribution on "noise space"
-        self.tonoise0 = nn.Conv2d(c,  2,  kernel_size=1, padding=0)
+        # (mean and sigma)
+        self.tonoise0 = nn.Conv2d(c,  2, kernel_size=1, padding=0)
         self.tonoise1 = nn.Conv2d(c1, 2, kernel_size=1, padding=0)
         self.tonoise2 = nn.Conv2d(c2, 2, kernel_size=1, padding=0)
         self.tonoise3 = nn.Conv2d(c3, 2, kernel_size=1, padding=0)
@@ -139,7 +140,7 @@ class StyleEncoder(nn.Module):
 
 class StyleDecoder(nn.Module):
 
-    def __init__(self, out_size, channels, zs=256, k=3, dist='gaussian', mapping=3, batch_norm=False, dropouts=None):
+    def __init__(self, out_size, channels, zs=256, k=3, mapping=3, batch_norm=False, dropouts=None):
         super().__init__()
 
         self.out_size = out_size
@@ -171,13 +172,7 @@ class StyleDecoder(nn.Module):
         self.tonoise1 = nn.Conv2d(1, c1, kernel_size=1, padding=0)
         self.tonoise0 = nn.Conv2d(1, c,  kernel_size=1, padding=0)
 
-        # mapping to distribution on image space
-        if dist in ['gaussian','beta']:
-            self.conv0 = nn.Conv2d(c, c*2, kernel_size=1)
-        elif dist == 'bernoulli': # binary xent loss
-            self.conv0 = nn.Conv2d(c, c, kernel_size=1)
-        else:
-            raise Exception('Output distribution {} not recognized'.format(dist))
+        self.conv0 = nn.Conv2d(c, c, kernel_size=1)
 
         m = []
         for _ in range(mapping):
@@ -211,7 +206,6 @@ class StyleDecoder(nn.Module):
         z5 = self.affine5(z).view(-1, 2 * c5, h//32, w//32)
 
         x5 = adain(z5, x5)
-
 
         x4 = F.upsample_bilinear(self.block5(x5), scale_factor=2)
         x4 = x4 + n4
@@ -372,9 +366,9 @@ def go(arg):
             # -- decoding
             xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample)
 
-            # Only Gaussian loss for now
-            m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
-            rec_loss = - m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
+            # m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
+            # rec_loss = - m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
+            rec_loss = F.binary_cross_entropy(xout, input)
 
             br, bz, b0, b1, b2, b3, b4, b5 = arg.betas
 
@@ -413,10 +407,8 @@ def go(arg):
                     if torch.cuda.is_available():
                         input = input.cuda()
 
-                    input, target = Variable(input), Variable(input)
-
                     # -- encoding
-                    z, n0, n1, n2, n3 = encoder(input)
+                    z, n0, n1, n2, n3, n4, n5 = encoder(input)
 
                     # -- compute KL losses
 
@@ -440,9 +432,10 @@ def go(arg):
                     # -- decoding
                     xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample)
 
-                    # Only Gaussian loss for now
-                    m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
-                    rec_loss = -m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
+                    # m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
+                    # rec_loss = -m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
+
+                    rec_loss = F.binary_cross_entropy(xout, input)
 
                     loss = rec_loss + zkl + n0kl + n1kl + n2kl + n3kl + n4kl + n5kl
                     loss = loss.mean(dim=0)
@@ -472,10 +465,13 @@ def go(arg):
             input = util.readn(testloader, n=6*12)
             if torch.cuda.is_available():
                 input = input.cuda()
-            input = Variable(input)
+
+            print(input.size())
 
             # -- encoding
             z, n0, n1, n2, n3, n4, n5 = util.nbatched(input, encoder, batch_size=32)
+
+            print(n5.size())
 
             # -- take samples
             zsample = util.sample(z[:, :zs], z[:, zs:])
@@ -486,14 +482,16 @@ def go(arg):
             n4sample = util.sample_image(n4)
             n5sample = util.sample_image(n5)
 
+            print(n5sample.size())
+
             # -- decoding
-            xout = util.batchedn((zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
+            xout = util.batchedn((zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
 
             # -- mix the latent vector with random noise
-            mixout = util.batchedn((zsample, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
+            mixout = util.batchedn((zsample, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
 
-            # -- mix the a random vector with the sample noise
-            mixout2 = util.batchedn((zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
+            # -- mix a random vector with the sample noise
+            mixout2 = util.batchedn((zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
 
             images = torch.cat([sample, input.cpu(), xout, mixout, mixout2], dim=0)
 
