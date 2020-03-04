@@ -587,7 +587,7 @@ def go(arg):
 
                 images = torch.cat([input.cpu(), xout, mixout, mixout2, sample], dim=0)
 
-                utils.save_image(images, 'images_{:02d}.png'.format(epoch), nrow=24, padding=2)
+                utils.save_image(images, f'images.{depth}.{epoch}.png', nrow=24, padding=2)
 
 if __name__ == "__main__":
 
