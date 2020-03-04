@@ -72,6 +72,8 @@ def sample(zmean, zlsig, eps=None):
     return zmean + eps * (zlsig * 0.5).exp()
 
 def kl_loss_image(z):
+    if z is None:
+        return 0.0
 
     b, c, h, w = z.size()
 
@@ -85,6 +87,9 @@ def kl_loss_image(z):
     return kl
 
 def sample_image(z, eps=None):
+
+    if z  is None:
+        return None
 
     b, c, h, w = z.size()
 
@@ -486,7 +491,7 @@ def batched(input, model, batch_size, cuda=torch.cuda.is_available()):
 
     return torch.cat(out_batches, dim=0)
 
-def nbatched(input, model, batch_size, cuda=torch.cuda.is_available()):
+def nbatched(input, model, batch_size, cuda=torch.cuda.is_available(), **kwargs):
     """
     Performs inference in batches. Input and output are non-variable, non-gpu tensors.
 
@@ -506,24 +511,30 @@ def nbatched(input, model, batch_size, cuda=torch.cuda.is_available()):
         batch = input[fr:to]
         if cuda:
             batch = batch.cuda()
-        batch = Variable(batch)
 
-        outputs = model(batch)
+        outputs = model(batch, **kwargs)
 
         if fr == 0:
             for _ in range(len(outputs)):
                 out_batches.append([])
 
         for i in range(len(outputs)):
-            out_batches[i].append(outputs[i].cpu().data)
+            out_batches[i].append(None if outputs[i] is None else outputs[i].cpu().data)
 
         del outputs
 
     res = []
     for batches in out_batches:
-        res.append(torch.cat(batches, dim=0))
+        res.append(None if none(batches) else torch.cat(batches, dim=0))
 
     return res
+
+def none(lst):
+    for l in lst:
+        if l is None:
+            return True
+
+    return False
 
 def batchedn(input, model, batch_size, cuda=torch.cuda.is_available()):
     """
@@ -544,12 +555,15 @@ def batchedn(input, model, batch_size, cuda=torch.cuda.is_available()):
 
         batches = []
         for e in input:
-            batch = e[fr:to]
+            if e is not None:
+                batch = e[fr:to]
 
-            if cuda:
-                batch = batch.cuda()
+                if cuda:
+                    batch = batch.cuda()
 
-            batches.append(batch)
+                batches.append(batch)
+            else:
+                batches.append(None)
 
         out_batches.append(model(*batches).cpu().data)
 
