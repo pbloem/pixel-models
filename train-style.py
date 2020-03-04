@@ -496,98 +496,99 @@ def go(arg):
 
                 optimizer.step()
 
-            with torch.no_grad():
-                err_te = []
-                encoder.train(False)
-                decoder.train(False)
+            if arg.epochs[depth] <= arg.np or epoch % (arg.epochs[depth]//arg.np) == 0 or epoch == arg.epochs[depth] - 1:
+                with torch.no_grad():
+                    err_te = []
+                    encoder.train(False)
+                    decoder.train(False)
 
-                if not arg.skip_test:
-                    for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
-                        if arg.limit is not None and i * arg.batch_size > arg.limit:
-                            break
+                    if not arg.skip_test:
+                        for i, (input, _) in enumerate(tqdm.tqdm(testloader)):
+                            if arg.limit is not None and i * arg.batch_size > arg.limit:
+                                break
 
-                        if torch.cuda.is_available():
-                            input = input.cuda()
+                            if torch.cuda.is_available():
+                                input = input.cuda()
 
-                        # -- encoding
-                        z, n0, n1, n2, n3, n4, n5 = encoder(input)
+                            # -- encoding
+                            z, n0, n1, n2, n3, n4, n5 = encoder(input)
 
-                        # -- compute KL losses
+                            # -- compute KL losses
 
-                        zkl  = util.kl_loss(z[:, :zs], z[:, zs:])
-                        n0kl = util.kl_loss_image(n0)
-                        n1kl = util.kl_loss_image(n1)
-                        n2kl = util.kl_loss_image(n2)
-                        n3kl = util.kl_loss_image(n3)
-                        n4kl = util.kl_loss_image(n4)
-                        n5kl = util.kl_loss_image(n5)
+                            zkl  = util.kl_loss(z[:, :zs], z[:, zs:])
+                            n0kl = util.kl_loss_image(n0)
+                            n1kl = util.kl_loss_image(n1)
+                            n2kl = util.kl_loss_image(n2)
+                            n3kl = util.kl_loss_image(n3)
+                            n4kl = util.kl_loss_image(n4)
+                            n5kl = util.kl_loss_image(n5)
 
-                        # -- take samples
-                        zsample  = util.sample(z[:, :zs], z[:, zs:])
-                        n0sample = util.sample_image(n0)
-                        n1sample = util.sample_image(n1)
-                        n2sample = util.sample_image(n2)
-                        n3sample = util.sample_image(n3)
-                        n4sample = util.sample_image(n4)
-                        n5sample = util.sample_image(n5)
+                            # -- take samples
+                            zsample  = util.sample(z[:, :zs], z[:, zs:])
+                            n0sample = util.sample_image(n0)
+                            n1sample = util.sample_image(n1)
+                            n2sample = util.sample_image(n2)
+                            n3sample = util.sample_image(n3)
+                            n4sample = util.sample_image(n4)
+                            n5sample = util.sample_image(n5)
 
-                        # -- decoding
-                        xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample)
+                            # -- decoding
+                            xout = decoder(zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample)
 
-                        # m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
-                        # rec_loss = -m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
+                            # m = ds.Normal(xout[:, :C, :, :], xout[:, C:, :, :])
+                            # rec_loss = -m.log_prob(target).sum(dim=1).sum(dim=1).sum(dim=1)
 
-                        rec_loss = F.binary_cross_entropy(xout, input)
+                            rec_loss = F.binary_cross_entropy(xout, input)
 
-                        loss = rec_loss + zkl + n0kl + n1kl + n2kl + n3kl + n4kl + n5kl
-                        loss = loss.mean(dim=0)
+                            loss = rec_loss + zkl + n0kl + n1kl + n2kl + n3kl + n4kl + n5kl
+                            loss = loss.mean(dim=0)
 
-                        err_te.append(loss.data.item())
+                            err_te.append(loss.data.item())
 
-                    tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
-                    print('epoch={:02}; test loss: {:.3f}'.format(
-                        epoch, sum(err_te)/len(err_te)))
+                        tbw.add_scalar('pixel-models/test-loss', sum(err_te)/len(err_te), epoch)
+                        print('epoch={:02}; test loss: {:.3f}'.format(
+                            epoch, sum(err_te)/len(err_te)))
 
-                # take some samples
+                    # take some samples
 
-                # sample 6x12 images
-                b = 6 * 12
+                    # sample 6x12 images
+                    b = 6 * 12
 
-                zrand, (n0rand, n1rand, n2rand, n3rand, n4rand, n5rand) = latent_sample(b,\
-                    zsize=arg.latent_size, outsize=(C, H, W), zchannels=arg.zchannels, \
-                    dev='cpu', depth=depth)
+                    zrand, (n0rand, n1rand, n2rand, n3rand, n4rand, n5rand) = latent_sample(b,\
+                        zsize=arg.latent_size, outsize=(C, H, W), zchannels=arg.zchannels, \
+                        dev='cpu', depth=depth)
 
-                sample = util.batchedn((zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
+                    sample = util.batchedn((zrand, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=8).clamp(0, 1)[:, :C, :, :]
 
-                # reconstruct 6x12 images from the testset
-                input = util.readn(testloader, n=6*12)
-                if torch.cuda.is_available():
-                    input = input.cuda()
+                    # reconstruct 6x12 images from the testset
+                    input = util.readn(testloader, n=6*12)
+                    if torch.cuda.is_available():
+                        input = input.cuda()
 
-                # -- encoding
-                z, n0, n1, n2, n3, n4, n5 = util.nbatched(input, encoder, batch_size=32, depth=depth)
+                    # -- encoding
+                    z, n0, n1, n2, n3, n4, n5 = util.nbatched(input, encoder, batch_size=32, depth=depth)
 
-                # -- take samples
-                zsample = util.sample(z[:, :zs], z[:, zs:])
-                n0sample = util.sample_image(n0)
-                n1sample = util.sample_image(n1)
-                n2sample = util.sample_image(n2)
-                n3sample = util.sample_image(n3)
-                n4sample = util.sample_image(n4)
-                n5sample = util.sample_image(n5)
+                    # -- take samples
+                    zsample = util.sample(z[:, :zs], z[:, zs:])
+                    n0sample = util.sample_image(n0)
+                    n1sample = util.sample_image(n1)
+                    n2sample = util.sample_image(n2)
+                    n3sample = util.sample_image(n3)
+                    n4sample = util.sample_image(n4)
+                    n5sample = util.sample_image(n5)
 
-                # -- decoding
-                xout = util.batchedn((zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
+                    # -- decoding
+                    xout = util.batchedn((zsample, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
 
-                # -- mix the latent vector with random noise
-                mixout = util.batchedn((zsample, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
+                    # -- mix the latent vector with random noise
+                    mixout = util.batchedn((zsample, n0rand, n1rand, n2rand, n3rand, n4rand, n5rand), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
 
-                # -- mix a random vector with the sample noise
-                mixout2 = util.batchedn((zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
+                    # -- mix a random vector with the sample noise
+                    mixout2 = util.batchedn((zrand, n0sample, n1sample, n2sample, n3sample, n4sample, n5sample), decoder, batch_size=4).clamp(0, 1)[:, :C, :, :]
 
-                images = torch.cat([input.cpu(), xout, mixout, mixout2, sample], dim=0)
+                    images = torch.cat([input.cpu(), xout, mixout, mixout2, sample], dim=0)
 
-                utils.save_image(images, f'images.{depth}.{epoch}.png', nrow=24, padding=2)
+                    utils.save_image(images, f'images.{depth}.{epoch}.png', nrow=24, padding=2)
 
 if __name__ == "__main__":
 
@@ -673,6 +674,11 @@ if __name__ == "__main__":
                         dest="mapping_layers",
                         help="Number of layers mapping from and to the distribution on z.",
                         default=3, type=int)
+
+    parser.add_argument("--numplots",
+                        dest="np",
+                        help="Number of plots per depth.",
+                        default=8, type=int)
 
     parser.add_argument("-l", "--learn-rate",
                         dest="lr",
