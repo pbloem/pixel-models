@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import torch.distributions as ds
 
 from torch.autograd import Variable
-from torchvision.transforms import CenterCrop, ToTensor, Compose, Lambda, Resize, Grayscale, Pad
+from torchvision.transforms import CenterCrop, ToTensor, Compose, Lambda, Resize, Grayscale, Pad, RandomHorizontalFlip
 from torchvision.datasets import coco
 from torchvision import utils
 
@@ -55,7 +55,7 @@ def adain(y, x):
 
     x = F.instance_norm(x)
 
-    return ys * x + yb
+    return (ys + 1.) * x + yb
 
 def latent_sample(b, zsize, outsize, depth, zchannels, dev=DV):
     """
@@ -149,7 +149,7 @@ class StyleEncoder(nn.Module):
             z = self.unmapping(z0)
             return z, n0, n1, n2, n3, n4, n5
 
-        x1 = F.max_pool2d(self.block1(x0), 2)
+        x1 = F.avg_pool2d(self.block1(x0), 2)
         z1 = self.affine1(x1.view(b, -1))
         n1 = self.tonoise1(x1)
 
@@ -157,7 +157,7 @@ class StyleEncoder(nn.Module):
             z = self.unmapping(z0 + z1)
             return z, n0, n1, n2, n3, n4, n5
 
-        x2 = F.max_pool2d(self.block2(x1), 2)
+        x2 = F.avg_pool2d(self.block2(x1), 2)
         z2 = self.affine2(x2.view(b, -1))
         n2 = self.tonoise2(x2)
 
@@ -165,7 +165,7 @@ class StyleEncoder(nn.Module):
             z = self.unmapping(z0 + z1 + z2)
             return z, n0, n1, n2, n3, n4, n5
 
-        x3 = F.max_pool2d(self.block3(x2), 2)
+        x3 = F.avg_pool2d(self.block3(x2), 2)
         z3 = self.affine3(x3.view(b, -1))
         n3 = self.tonoise3(x3)
 
@@ -173,7 +173,7 @@ class StyleEncoder(nn.Module):
             z = self.unmapping(z0 + z1 + z2 + z3)
             return z, n0, n1, n2, n3, n4, n5
 
-        x4 = F.max_pool2d(self.block4(x3), 2)
+        x4 = F.avg_pool2d(self.block4(x3), 2)
         z4 = self.affine4(x4.view(b, -1))
         n4 = self.tonoise4(x4)
 
@@ -181,7 +181,7 @@ class StyleEncoder(nn.Module):
             z = self.unmapping(z0 + z1 + z2 + z3 + z4)
             return z, n0, n1, n2, n3, n4, n5
 
-        x5 = F.max_pool2d(self.block5(x4), 2)
+        x5 = F.avg_pool2d(self.block5(x4), 2)
         z5 = self.affine5(x5.view(b, -1))
         n5 = self.tonoise5(x5)
 
@@ -215,11 +215,11 @@ class StyleDecoder(nn.Module):
         z0, z1, z2, z3, z4, z5 = zchannels
 
         # resnet blocks
-        self.block5 = util.Block(c5, c4, kernel_size=k, deconv=True, batch_norm=batch_norm)
-        self.block4 = util.Block(c4, c3, kernel_size=k, deconv=True, batch_norm=batch_norm)
-        self.block3 = util.Block(c3, c2, kernel_size=k, deconv=True, batch_norm=batch_norm)
-        self.block2 = util.Block(c2, c1, kernel_size=k, deconv=True, batch_norm=batch_norm)
-        self.block1 = util.Block(c1, c,  kernel_size=k, deconv=True, batch_norm=batch_norm)
+        self.block5 = util.Block(c5, c4, kernel_size=k, batch_norm=batch_norm)
+        self.block4 = util.Block(c4, c3, kernel_size=k, batch_norm=batch_norm)
+        self.block3 = util.Block(c3, c2, kernel_size=k, batch_norm=batch_norm)
+        self.block2 = util.Block(c2, c1, kernel_size=k, batch_norm=batch_norm)
+        self.block1 = util.Block(c1, c,  kernel_size=k, batch_norm=batch_norm)
 
         # affine mappings from latent space sample
         self.affine5 = nn.Linear(zs, 2 * util.prod((c5, h//32, w//32)))
@@ -396,7 +396,7 @@ def go(arg):
         C, H, W = 3, 64, 64
 
     elif arg.task == 'ffhq':
-        transform = Compose([ToTensor()])
+        transform = Compose([RandomHorizontalFlip(0.5), ToTensor()])
 
         trainset = torchvision.datasets.ImageFolder(root=arg.data_dir+os.sep+'train',
                                                     transform=transform)
