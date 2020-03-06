@@ -312,7 +312,7 @@ class StyleDecoder(nn.Module):
             if x3 is None:
                 x3 = self.x3
 
-            x2 = F.upsample_bilinear(self.block3(x3), scale_factor=2)
+            x2 = F.upsample(self.block3(x3), scale_factor=2)
             x2 = x2 + self.tonoise2(n2)
             z2 = self.affine2(z).view(-1, 2 * c2, h//4, w//4)
             x2 = adain(z2, x2)
@@ -321,7 +321,7 @@ class StyleDecoder(nn.Module):
             if x2 is None:
                 x2 = self.x2
 
-            x1 = F.upsample_bilinear(self.block2(x2), scale_factor=2)
+            x1 = F.upsample(self.block2(x2), scale_factor=2)
             x1 = x1 + self.tonoise1(n1)
             z1 = self.affine1(z).view(-1, 2 * c1, h//2, w//2)
             x1 = adain(z1, x1)
@@ -330,7 +330,7 @@ class StyleDecoder(nn.Module):
             if x1 is None:
                 x1 = self.x1
 
-            x0 = F.upsample_bilinear(self.block1(x1), scale_factor=2)
+            x0 = F.upsample(self.block1(x1), scale_factor=2)
             x0 = x0 + self.tonoise0(n0)
             z0 = self.affine0(z).view(-1, 2 * c, h, w)
             x0 = adain(z0, x0)
